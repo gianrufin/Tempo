@@ -1,7 +1,10 @@
 package com.tempo.app.ui.screens.settings
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.tempo.app.data.backup.BackupManager
+import com.tempo.app.data.backup.BackupScheduler
 import com.tempo.app.data.preferences.PreferencesRepository
 import com.tempo.app.data.preferences.UserPreferences
 import com.tempo.app.data.repository.HabitRepository
@@ -22,11 +25,18 @@ data class UpdateCheckUiState(
     val result: UpdateCheckResult? = null,
 )
 
+data class BackupUiState(
+    val isRunning: Boolean = false,
+    val lastResultMessage: String? = null,
+)
+
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val preferencesRepository: PreferencesRepository,
     private val habitRepository: HabitRepository,
     private val updateChecker: UpdateChecker,
+    private val backupManager: BackupManager,
+    private val backupScheduler: BackupScheduler,
 ) : ViewModel() {
 
     val preferences: StateFlow<UserPreferences> = preferencesRepository.userPreferences
@@ -34,6 +44,9 @@ class SettingsViewModel @Inject constructor(
 
     private val _updateCheckState = MutableStateFlow(UpdateCheckUiState())
     val updateCheckState = _updateCheckState.asStateFlow()
+
+    private val _backupState = MutableStateFlow(BackupUiState())
+    val backupState = _backupState.asStateFlow()
 
     fun onDisplayNameChange(name: String) {
         viewModelScope.launch { preferencesRepository.setDisplayName(name) }
@@ -56,4 +69,31 @@ class SettingsViewModel @Inject constructor(
     }
 
     suspend fun exportCsv(): String = habitRepository.exportAllCompletionsCsv()
+
+    fun onBackupFolderSelected(uri: Uri) {
+        viewModelScope.launch { preferencesRepository.setBackupFolderUri(uri.toString()) }
+    }
+
+    fun onBackupDailyEnabledChange(enabled: Boolean) {
+        viewModelScope.launch { preferencesRepository.setBackupDailyEnabled(enabled) }
+    }
+
+    fun onBackupTimeChange(hour: Int, minute: Int) {
+        viewModelScope.launch { preferencesRepository.setBackupTime(hour, minute) }
+        backupScheduler.scheduleDaily(hour, minute)
+    }
+
+    fun backupNow() {
+        val uriString = preferences.value.backupFolderUri ?: return
+        viewModelScope.launch {
+            _backupState.value = BackupUiState(isRunning = true)
+            val result = backupManager.backupTo(Uri.parse(uriString))
+            if (result.isSuccess) {
+                preferencesRepository.setLastBackupAtMillis(System.currentTimeMillis())
+                _backupState.value = BackupUiState(lastResultMessage = "Backed up as ${result.getOrNull()}")
+            } else {
+                _backupState.value = BackupUiState(lastResultMessage = "Backup failed: ${result.exceptionOrNull()?.message}")
+            }
+        }
+    }
 }

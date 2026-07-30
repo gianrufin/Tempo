@@ -1,5 +1,8 @@
 package com.tempo.app.ui.screens.settings
 
+import android.content.Intent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,11 +14,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -24,6 +29,9 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -36,13 +44,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.tempo.app.BuildConfig
+import com.tempo.app.data.preferences.UserPreferences
 import com.tempo.app.data.update.UpdateChecker
 import com.tempo.app.domain.model.ThemeMode
 import com.tempo.app.ui.components.shareCsv
 import com.tempo.app.ui.theme.TempoExtraShapes
 import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 
 @Composable
 fun SettingsScreen(modifier: Modifier = Modifier, viewModel: SettingsViewModel = hiltViewModel()) {
@@ -117,6 +131,10 @@ fun SettingsScreen(modifier: Modifier = Modifier, viewModel: SettingsViewModel =
             }
         }
 
+        SettingsSection(title = "Backup") {
+            BackupSection(viewModel = viewModel, prefs = prefs)
+        }
+
         SettingsSection(title = "Updates") {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Button(
@@ -184,5 +202,119 @@ private fun SettingsSection(title: String, content: @Composable () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(text = title, style = MaterialTheme.typography.titleMedium)
         content()
+    }
+}
+
+@Composable
+private fun BackupSection(viewModel: SettingsViewModel, prefs: UserPreferences) {
+    val backupState by viewModel.backupState.collectAsState()
+    var showTimePicker by remember { mutableStateOf(false) }
+    val timeFormatter = remember { DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT) }
+    val context = LocalContext.current
+
+    val folderPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        if (uri != null) {
+            context.contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+            )
+            viewModel.onBackupFolderSelected(uri)
+        }
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(
+            "Back up to a local folder or a Google Drive folder — Drive shows up as a normal " +
+                "destination in the picker below, no sign-in setup needed here.",
+            style = MaterialTheme.typography.bodySmall,
+        )
+        OutlinedButton(
+            onClick = { folderPicker.launch(null) },
+            shape = TempoExtraShapes.pill,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(if (prefs.backupFolderUri != null) "Change backup folder" else "Choose backup folder")
+        }
+
+        if (prefs.backupFolderUri != null) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Daily automatic backup", style = MaterialTheme.typography.bodyLarge)
+                Switch(checked = prefs.backupDailyEnabled, onCheckedChange = viewModel::onBackupDailyEnabledChange)
+            }
+
+            if (prefs.backupDailyEnabled) {
+                OutlinedButton(onClick = { showTimePicker = true }, shape = TempoExtraShapes.pill) {
+                    val time = java.time.LocalTime.of(prefs.backupHour, prefs.backupMinute)
+                    Text("Backup time: ${time.format(timeFormatter)}")
+                }
+            }
+
+            Button(
+                onClick = viewModel::backupNow,
+                enabled = !backupState.isRunning,
+                shape = TempoExtraShapes.pill,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                if (backupState.isRunning) {
+                    CircularProgressIndicator(modifier = Modifier.padding(end = 8.dp), color = MaterialTheme.colorScheme.onPrimary)
+                } else {
+                    Icon(Icons.Filled.CloudUpload, contentDescription = null)
+                }
+                Text("  Back up now")
+            }
+
+            prefs.lastBackupAtMillis?.let { millis ->
+                val lastBackup = Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault())
+                Text(
+                    "Last backup: ${lastBackup.toLocalDate()} ${lastBackup.toLocalTime().format(timeFormatter)}",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            backupState.lastResultMessage?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall)
+            }
+        }
+    }
+
+    if (showTimePicker) {
+        BackupTimePickerDialog(
+            initialHour = prefs.backupHour,
+            initialMinute = prefs.backupMinute,
+            onDismiss = { showTimePicker = false },
+            onConfirm = { hour, minute ->
+                viewModel.onBackupTimeChange(hour, minute)
+                showTimePicker = false
+            },
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun BackupTimePickerDialog(
+    initialHour: Int,
+    initialMinute: Int,
+    onDismiss: () -> Unit,
+    onConfirm: (Int, Int) -> Unit,
+) {
+    val state = rememberTimePickerState(initialHour = initialHour, initialMinute = initialMinute, is24Hour = false)
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(shape = TempoExtraShapes.card, color = MaterialTheme.colorScheme.surface) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                TimePicker(state = state)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = onDismiss) { Text("Cancel") }
+                    Button(onClick = { onConfirm(state.hour, state.minute) }, shape = TempoExtraShapes.pill) { Text("Set") }
+                }
+            }
+        }
     }
 }
