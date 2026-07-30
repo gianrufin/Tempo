@@ -13,6 +13,8 @@ fun HabitEntity.toDomain(): Habit = Habit(
     reminderTimes = reminderTimes,
     streakFreezeAllowance = streakFreezeAllowance,
     graceDays = graceDays,
+    timeOfDay = timeOfDay,
+    routineId = routineId,
     createdAt = createdAt,
     archived = archived,
 )
@@ -27,6 +29,8 @@ fun Habit.toEntity(): HabitEntity = HabitEntity(
     reminderTimes = reminderTimes,
     streakFreezeAllowance = streakFreezeAllowance,
     graceDays = graceDays,
+    timeOfDay = timeOfDay,
+    routineId = routineId,
     createdAt = createdAt,
     archived = archived,
 )

@@ -1,6 +1,5 @@
 package com.tempo.app.ui.screens.insights
 
-import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -29,14 +28,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.tempo.app.domain.model.HabitInsight
 import com.tempo.app.domain.model.InsightsPeriod
 import com.tempo.app.domain.model.InsightsSummary
+import com.tempo.app.ui.components.shareCsv
 import com.tempo.app.ui.theme.TempoExtraShapes
 import kotlinx.coroutines.launch
-import java.io.File
 
 @Composable
 fun InsightsScreen(modifier: Modifier = Modifier, viewModel: InsightsViewModel = hiltViewModel()) {
@@ -154,17 +152,4 @@ private fun ProgressBar(fraction: Float) {
                 .background(MaterialTheme.colorScheme.primary),
         )
     }
-}
-
-private fun shareCsv(context: android.content.Context, csv: String) {
-    val exportsDir = File(context.cacheDir, "exports").apply { mkdirs() }
-    val file = File(exportsDir, "tempo_export.csv")
-    file.writeText(csv)
-    val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
-    val intent = Intent(Intent.ACTION_SEND).apply {
-        type = "text/csv"
-        putExtra(Intent.EXTRA_STREAM, uri)
-        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-    }
-    context.startActivity(Intent.createChooser(intent, "Export habit history"))
 }

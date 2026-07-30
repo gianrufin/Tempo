@@ -3,6 +3,7 @@ package com.tempo.app.data.local
 import androidx.room.TypeConverter
 import com.tempo.app.domain.model.HabitCompletionStatus
 import com.tempo.app.domain.model.RecurrenceRule
+import com.tempo.app.domain.model.TimeOfDay
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -50,4 +51,10 @@ class Converters {
 
     @TypeConverter
     fun toCompletionStatus(value: String): HabitCompletionStatus = HabitCompletionStatus.valueOf(value)
+
+    @TypeConverter
+    fun fromTimeOfDay(timeOfDay: TimeOfDay): String = timeOfDay.name
+
+    @TypeConverter
+    fun toTimeOfDay(value: String): TimeOfDay = TimeOfDay.valueOf(value)
 }

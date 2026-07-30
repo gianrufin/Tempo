@@ -13,6 +13,8 @@ data class Habit(
     val reminderTimes: List<LocalTime> = emptyList(),
     val streakFreezeAllowance: Int = 1,
     val graceDays: Int = 1,
+    val timeOfDay: TimeOfDay = TimeOfDay.MORNING,
+    val routineId: Long? = null,
     val createdAt: LocalDate = LocalDate.now(),
     val archived: Boolean = false,
 )

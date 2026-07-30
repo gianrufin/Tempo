@@ -49,6 +49,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.tempo.app.domain.model.TimeOfDay
 import com.tempo.app.ui.theme.TempoExtraShapes
 import java.time.DayOfWeek
 import java.time.LocalTime
@@ -190,6 +191,19 @@ fun AddEditHabitScreen(
                     value = state.graceDays,
                     onValueChange = viewModel::onGraceDaysChange,
                 )
+            }
+
+            Section(title = "Time of day") {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TimeOfDay.entries.forEach { tod ->
+                        FilterChip(
+                            selected = state.timeOfDay == tod,
+                            onClick = { viewModel.onTimeOfDayChange(tod) },
+                            label = { Text(tod.label) },
+                            shape = TempoExtraShapes.pill,
+                        )
+                    }
+                }
             }
 
             Section(title = "Reminders") {

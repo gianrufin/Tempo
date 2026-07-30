@@ -6,6 +6,7 @@ import com.tempo.app.domain.model.HabitDetail
 import com.tempo.app.domain.model.HabitWithTodayStatus
 import com.tempo.app.domain.model.InsightsPeriod
 import com.tempo.app.domain.model.InsightsSummary
+import com.tempo.app.domain.model.Routine
 import kotlinx.coroutines.flow.Flow
 import java.time.LocalDate
 import java.time.YearMonth
@@ -35,4 +36,10 @@ interface HabitRepository {
 
     /** All habits (including archived) and their full completion history, as CSV text. */
     suspend fun exportAllCompletionsCsv(): String
+
+    fun observeActiveRoutines(): Flow<List<Routine>>
+    suspend fun getRoutine(id: Long): Routine?
+    suspend fun addRoutine(routine: Routine): Long
+    suspend fun updateRoutine(routine: Routine)
+    suspend fun archiveRoutine(id: Long)
 }

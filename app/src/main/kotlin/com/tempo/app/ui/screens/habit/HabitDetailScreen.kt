@@ -14,14 +14,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.LocalFireDepartment
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -33,10 +30,12 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.tempo.app.domain.model.HabitCompletionStatus
 import com.tempo.app.domain.model.HabitDetail
 import com.tempo.app.domain.model.HeatmapDay
+import com.tempo.app.ui.components.GradientIconButton
+import com.tempo.app.ui.components.GradientTopBar
 import com.tempo.app.ui.theme.TempoExtraShapes
+import com.tempo.app.ui.theme.TempoGradients
 import java.time.LocalDate
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HabitDetailScreen(
     onBack: () -> Unit,
@@ -49,17 +48,17 @@ fun HabitDetailScreen(
     Scaffold(
         modifier = modifier,
         topBar = {
-            TopAppBar(
-                title = { Text(detail?.habit?.name.orEmpty()) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
+            GradientTopBar(
+                title = detail?.habit?.name.orEmpty(),
+                gradient = TempoGradients.detail,
+                onBack = onBack,
+                backIcon = Icons.Filled.ArrowBack,
                 actions = {
-                    IconButton(onClick = { onEdit(viewModel.habitId) }) {
-                        Icon(Icons.Filled.Edit, contentDescription = "Edit habit")
-                    }
+                    GradientIconButton(
+                        icon = Icons.Filled.Edit,
+                        contentDescription = "Edit habit",
+                        onClick = { onEdit(viewModel.habitId) },
+                    )
                 },
             )
         },

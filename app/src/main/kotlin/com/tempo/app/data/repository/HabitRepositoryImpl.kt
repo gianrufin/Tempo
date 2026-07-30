@@ -2,6 +2,7 @@ package com.tempo.app.data.repository
 
 import com.tempo.app.data.local.dao.HabitCompletionDao
 import com.tempo.app.data.local.dao.HabitDao
+import com.tempo.app.data.local.dao.RoutineDao
 import com.tempo.app.data.local.entity.HabitCompletionEntity
 import com.tempo.app.domain.RecurrenceEngine
 import com.tempo.app.domain.StreakCalculator
@@ -15,6 +16,7 @@ import com.tempo.app.domain.model.HeatmapDay
 import com.tempo.app.domain.model.InsightsPeriod
 import com.tempo.app.domain.model.InsightsSummary
 import com.tempo.app.domain.model.RecurrenceRule
+import com.tempo.app.domain.model.Routine
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
@@ -26,6 +28,7 @@ import javax.inject.Inject
 class HabitRepositoryImpl @Inject constructor(
     private val habitDao: HabitDao,
     private val completionDao: HabitCompletionDao,
+    private val routineDao: RoutineDao,
 ) : HabitRepository {
 
     override fun observeActiveHabits(): Flow<List<Habit>> =
@@ -280,4 +283,15 @@ class HabitRepositoryImpl @Inject constructor(
         }
         return builder.toString()
     }
+
+    override fun observeActiveRoutines(): Flow<List<Routine>> =
+        routineDao.observeActive().map { entities -> entities.map { it.toDomain() } }
+
+    override suspend fun getRoutine(id: Long): Routine? = routineDao.getById(id)?.toDomain()
+
+    override suspend fun addRoutine(routine: Routine): Long = routineDao.insert(routine.toEntity())
+
+    override suspend fun updateRoutine(routine: Routine) = routineDao.update(routine.toEntity())
+
+    override suspend fun archiveRoutine(id: Long) = routineDao.archive(id)
 }

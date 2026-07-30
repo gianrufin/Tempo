@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.tempo.app.data.repository.HabitRepository
 import com.tempo.app.domain.model.Habit
 import com.tempo.app.domain.model.RecurrenceRule
+import com.tempo.app.domain.model.TimeOfDay
 import com.tempo.app.widget.WidgetRefresher
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -32,6 +33,8 @@ data class AddEditHabitUiState(
     val monthlyDayOfMonth: Int = 1,
     val streakFreezeAllowance: Int = 1,
     val graceDays: Int = 1,
+    val timeOfDay: TimeOfDay = TimeOfDay.forCurrentTime(),
+    val routineId: Long? = null,
     val reminderTimes: List<LocalTime> = emptyList(),
     val isSaved: Boolean = false,
 ) {
@@ -51,8 +54,11 @@ class AddEditHabitViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val habitIdArg: Long? = savedStateHandle.get<Long>("habitId")?.takeIf { it != 0L }
+    private val routineIdArg: Long? = savedStateHandle.get<Long>("routineId")?.takeIf { it != -1L }
 
-    private val _uiState = MutableStateFlow(AddEditHabitUiState(habitId = habitIdArg))
+    private val _uiState = MutableStateFlow(
+        AddEditHabitUiState(habitId = habitIdArg, routineId = routineIdArg),
+    )
     val uiState = _uiState.asStateFlow()
 
     init {
@@ -76,6 +82,7 @@ class AddEditHabitViewModel @Inject constructor(
     fun onMonthlyDayChange(value: Int) = update { it.copy(monthlyDayOfMonth = value.coerceIn(1, 31)) }
     fun onStreakFreezeAllowanceChange(value: Int) = update { it.copy(streakFreezeAllowance = value.coerceIn(0, 7)) }
     fun onGraceDaysChange(value: Int) = update { it.copy(graceDays = value.coerceIn(0, 7)) }
+    fun onTimeOfDayChange(value: TimeOfDay) = update { it.copy(timeOfDay = value) }
     fun onAddReminderTime(time: LocalTime) = update {
         if (time in it.reminderTimes) it else it.copy(reminderTimes = (it.reminderTimes + time).sorted())
     }
@@ -95,6 +102,8 @@ class AddEditHabitViewModel @Inject constructor(
                         recurrenceRule = recurrenceRule,
                         streakFreezeAllowance = state.streakFreezeAllowance,
                         graceDays = state.graceDays,
+                        timeOfDay = state.timeOfDay,
+                        routineId = state.routineId,
                         reminderTimes = state.reminderTimes,
                         createdAt = LocalDate.now(),
                     ),
@@ -109,6 +118,7 @@ class AddEditHabitViewModel @Inject constructor(
                         recurrenceRule = recurrenceRule,
                         streakFreezeAllowance = state.streakFreezeAllowance,
                         graceDays = state.graceDays,
+                        timeOfDay = state.timeOfDay,
                         reminderTimes = state.reminderTimes,
                     ),
                 )
@@ -139,6 +149,8 @@ class AddEditHabitViewModel @Inject constructor(
             colorArgb = colorArgb,
             streakFreezeAllowance = streakFreezeAllowance,
             graceDays = graceDays,
+            timeOfDay = timeOfDay,
+            routineId = routineId,
             reminderTimes = reminderTimes,
         )
         return when (val rule = recurrenceRule) {
