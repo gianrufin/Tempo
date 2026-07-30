@@ -4,7 +4,7 @@ import android.content.Context
 import androidx.glance.GlanceId
 import androidx.glance.action.ActionParameters
 import androidx.glance.appwidget.action.ActionCallback
-import androidx.glance.appwidget.update
+import androidx.glance.appwidget.updateAll
 import com.tempo.app.di.WidgetEntryPoint
 import dagger.hilt.android.EntryPointAccessors
 import java.time.LocalDate
@@ -20,6 +20,6 @@ class ToggleHabitAction : ActionCallback {
         ).habitRepository()
 
         repository.cycleCompletion(habitId, LocalDate.now())
-        TempoWidget().update(context, glanceId)
+        TempoWidget().updateAll(context)
     }
 }

@@ -29,7 +29,7 @@ class Converters {
     fun fromLocalTime(time: LocalTime?): Int? = time?.toSecondOfDay()
 
     @TypeConverter
-    fun toLocalTime(secondOfDay: Int?): LocalTime? = secondOfDay?.let(LocalTime::ofSecondOfDay)
+    fun toLocalTime(secondOfDay: Int?): LocalTime? = secondOfDay?.let { LocalTime.ofSecondOfDay(it.toLong()) }
 
     @TypeConverter
     fun fromLocalTimeList(times: List<LocalTime>): String =
@@ -37,7 +37,7 @@ class Converters {
 
     @TypeConverter
     fun toLocalTimeList(value: String): List<LocalTime> =
-        json.decodeFromString<List<Int>>(value).map(LocalTime::ofSecondOfDay)
+        json.decodeFromString<List<Int>>(value).map { LocalTime.ofSecondOfDay(it.toLong()) }
 
     @TypeConverter
     fun fromRecurrenceRule(rule: RecurrenceRule): String = json.encodeToString(rule)
