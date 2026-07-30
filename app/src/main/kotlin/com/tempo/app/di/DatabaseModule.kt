@@ -2,6 +2,7 @@ package com.tempo.app.di
 
 import android.content.Context
 import androidx.room.Room
+import com.tempo.app.data.local.Migrations
 import com.tempo.app.data.local.TempoDatabase
 import com.tempo.app.data.local.dao.GoalDao
 import com.tempo.app.data.local.dao.HabitCompletionDao
@@ -25,8 +26,11 @@ object DatabaseModule {
     @Singleton
     fun provideTempoDatabase(@ApplicationContext context: Context): TempoDatabase =
         Room.databaseBuilder(context, TempoDatabase::class.java, TempoDatabase.DATABASE_NAME)
-            // Pre-release app with no shipped users yet; simplest path through schema churn.
-            .fallbackToDestructiveMigration()
+            // Real migrations so an app update never silently wipes a user's habits/tasks again —
+            // only a genuine downgrade (installing an older build over a newer database) falls
+            // back to a destructive reset, since there's no sane way to migrate backwards.
+            .addMigrations(*Migrations.ALL)
+            .fallbackToDestructiveMigrationOnDowngrade()
             .build()
 
     @Provides
