@@ -2,6 +2,8 @@ package com.tempo.app.di
 
 import com.tempo.app.data.repository.HabitRepository
 import com.tempo.app.data.repository.HabitRepositoryImpl
+import com.tempo.app.data.repository.MoodRepository
+import com.tempo.app.data.repository.MoodRepositoryImpl
 import com.tempo.app.data.repository.TaskRepository
 import com.tempo.app.data.repository.TaskRepositoryImpl
 import dagger.Binds
@@ -21,4 +23,8 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindTaskRepository(impl: TaskRepositoryImpl): TaskRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindMoodRepository(impl: MoodRepositoryImpl): MoodRepository
 }

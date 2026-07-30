@@ -57,6 +57,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.tempo.app.domain.model.HabitCompletionStatus
 import com.tempo.app.domain.model.HabitWithTodayStatus
+import com.tempo.app.domain.model.Mood
 import com.tempo.app.domain.model.RoutineWithHabits
 import com.tempo.app.ui.theme.OnGradient
 import com.tempo.app.ui.theme.TempoExtraShapes
@@ -98,6 +99,10 @@ fun TodayScreen(
                 entries = state.dayStrip,
                 selectedDate = state.selectedDate,
                 onSelectDate = viewModel::onSelectDate,
+            )
+            MoodCheckIn(
+                currentMood = state.moodForSelectedDate?.mood,
+                onSelectMood = viewModel::onSetMood,
             )
 
             if (state.isEmpty) {
@@ -279,6 +284,31 @@ private fun StackedItem(index: Int, listState: LazyListState, content: @Composab
             }
         },
     ) { content() }
+}
+
+/** A one-tap mood check-in row for the selected day; picking a mood immediately saves it. */
+@Composable
+private fun MoodCheckIn(currentMood: Mood?, onSelectMood: (Mood) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Mood.entries.forEach { mood ->
+            val selected = mood == currentMood
+            Surface(
+                shape = CircleShape,
+                color = if (selected) OnGradient.surfaceStrong else OnGradient.surface,
+                modifier = Modifier.size(40.dp),
+                onClick = { onSelectMood(mood) },
+            ) {
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                    Text(mood.emoji, style = MaterialTheme.typography.titleMedium)
+                }
+            }
+        }
+    }
 }
 
 /** A horizontally scrollable date rail; each cell shows a slim progress bar reflecting that day's completion. */

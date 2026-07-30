@@ -5,9 +5,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tempo.app.data.preferences.PreferencesRepository
 import com.tempo.app.data.repository.HabitRepository
+import com.tempo.app.data.repository.MoodRepository
 import com.tempo.app.domain.model.Habit
 import com.tempo.app.domain.model.HabitTemplate
 import com.tempo.app.domain.model.HabitWithTodayStatus
+import com.tempo.app.domain.model.Mood
+import com.tempo.app.domain.model.MoodEntry
 import com.tempo.app.domain.model.RecurrenceRule
 import com.tempo.app.domain.model.RoutineWithHabits
 import com.tempo.app.widget.WidgetRefresher
@@ -36,6 +39,7 @@ data class TodayUiState(
     val dayStrip: List<DayStripEntry> = emptyList(),
     val routineGroups: List<RoutineWithHabits> = emptyList(),
     val standaloneHabits: List<HabitWithTodayStatus> = emptyList(),
+    val moodForSelectedDate: MoodEntry? = null,
 ) {
     val isEmpty: Boolean get() = routineGroups.isEmpty() && standaloneHabits.isEmpty()
     val completionFraction: Float
@@ -50,6 +54,7 @@ private const val DAYS_AFTER_TODAY = 10
 class TodayViewModel @Inject constructor(
     private val repository: HabitRepository,
     private val preferencesRepository: PreferencesRepository,
+    private val moodRepository: MoodRepository,
     @ApplicationContext private val appContext: Context,
 ) : ViewModel() {
 
@@ -59,8 +64,9 @@ class TodayViewModel @Inject constructor(
     private val _selectedDate = MutableStateFlow(today)
 
     private val habitsForSelectedDate = _selectedDate.flatMapLatest { date -> repository.observeHabitsForDate(date) }
+    private val moodForSelectedDate = _selectedDate.flatMapLatest { date -> moodRepository.observeForDate(date) }
 
-    val uiState: StateFlow<TodayUiState> = combine(
+    private val baseState = combine(
         preferencesRepository.userPreferences,
         habitsForSelectedDate,
         repository.observeActiveRoutines(),
@@ -89,6 +95,10 @@ class TodayViewModel @Inject constructor(
             routineGroups = routineGroups,
             standaloneHabits = standalone,
         )
+    }
+
+    val uiState: StateFlow<TodayUiState> = combine(baseState, moodForSelectedDate) { state, mood ->
+        state.copy(moodForSelectedDate = mood)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TodayUiState(selectedDate = today))
 
     fun onSelectDate(date: LocalDate) {
@@ -108,6 +118,10 @@ class TodayViewModel @Inject constructor(
             repository.markExcused(habitId, _selectedDate.value)
             WidgetRefresher.refresh(appContext)
         }
+    }
+
+    fun onSetMood(mood: Mood, note: String = "") {
+        viewModelScope.launch { moodRepository.setMood(_selectedDate.value, mood, note) }
     }
 
     fun onQuickAddHabit(template: HabitTemplate) {

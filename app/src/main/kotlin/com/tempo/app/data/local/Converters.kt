@@ -2,6 +2,7 @@ package com.tempo.app.data.local
 
 import androidx.room.TypeConverter
 import com.tempo.app.domain.model.HabitCompletionStatus
+import com.tempo.app.domain.model.Mood
 import com.tempo.app.domain.model.RecurrenceRule
 import com.tempo.app.domain.model.TaskPriority
 import com.tempo.app.domain.model.TimeOfDay
@@ -58,6 +59,12 @@ class Converters {
 
     @TypeConverter
     fun toTaskPriority(value: String): TaskPriority = TaskPriority.valueOf(value)
+
+    @TypeConverter
+    fun fromMood(mood: Mood): String = mood.name
+
+    @TypeConverter
+    fun toMood(value: String): Mood = Mood.valueOf(value)
 
     @TypeConverter
     fun fromCompletionStatus(status: HabitCompletionStatus): String = status.name
