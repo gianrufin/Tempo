@@ -7,6 +7,7 @@ import com.tempo.app.data.local.TempoDatabase
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.File
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
@@ -37,6 +38,26 @@ class BackupManager @Inject constructor(
             } ?: error("Can't open the backup file for writing")
 
             fileName
+        }
+    }
+
+    /**
+     * Overwrites the live database with [fileUri]'s contents. The Room instance is closed first
+     * (and its stale WAL/SHM sidecar files removed) so the next access reopens cleanly against the
+     * restored file — callers must restart the app afterward, since every other already-injected
+     * Room/DAO reference in the process still points at the now-closed connection.
+     */
+    suspend fun restoreFrom(fileUri: Uri): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            database.close()
+
+            val dbFile = context.getDatabasePath(TempoDatabase.DATABASE_NAME)
+            context.contentResolver.openInputStream(fileUri)?.use { input ->
+                dbFile.outputStream().use { output -> input.copyTo(output) }
+            } ?: error("Can't read the selected backup file")
+
+            File(dbFile.path + "-wal").delete()
+            File(dbFile.path + "-shm").delete()
         }
     }
 

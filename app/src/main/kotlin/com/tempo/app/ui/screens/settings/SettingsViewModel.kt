@@ -30,6 +30,12 @@ data class BackupUiState(
     val lastResultMessage: String? = null,
 )
 
+data class RestoreUiState(
+    val isRunning: Boolean = false,
+    val restoredSuccessfully: Boolean = false,
+    val errorMessage: String? = null,
+)
+
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val preferencesRepository: PreferencesRepository,
@@ -47,6 +53,9 @@ class SettingsViewModel @Inject constructor(
 
     private val _backupState = MutableStateFlow(BackupUiState())
     val backupState = _backupState.asStateFlow()
+
+    private val _restoreState = MutableStateFlow(RestoreUiState())
+    val restoreState = _restoreState.asStateFlow()
 
     fun onDisplayNameChange(name: String) {
         viewModelScope.launch { preferencesRepository.setDisplayName(name) }
@@ -93,6 +102,18 @@ class SettingsViewModel @Inject constructor(
                 _backupState.value = BackupUiState(lastResultMessage = "Backed up as ${result.getOrNull()}")
             } else {
                 _backupState.value = BackupUiState(lastResultMessage = "Backup failed: ${result.exceptionOrNull()?.message}")
+            }
+        }
+    }
+
+    fun restoreFrom(uri: Uri) {
+        viewModelScope.launch {
+            _restoreState.value = RestoreUiState(isRunning = true)
+            val result = backupManager.restoreFrom(uri)
+            _restoreState.value = if (result.isSuccess) {
+                RestoreUiState(restoredSuccessfully = true)
+            } else {
+                RestoreUiState(errorMessage = "Restore failed: ${result.exceptionOrNull()?.message}")
             }
         }
     }

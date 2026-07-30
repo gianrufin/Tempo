@@ -14,6 +14,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.SystemUpdate
@@ -50,6 +51,7 @@ import com.tempo.app.BuildConfig
 import com.tempo.app.data.preferences.UserPreferences
 import com.tempo.app.data.update.UpdateChecker
 import com.tempo.app.domain.model.ThemeMode
+import com.tempo.app.ui.components.restartApp
 import com.tempo.app.ui.components.shareCsv
 import com.tempo.app.ui.theme.TempoExtraShapes
 import kotlinx.coroutines.launch
@@ -208,7 +210,9 @@ private fun SettingsSection(title: String, content: @Composable () -> Unit) {
 @Composable
 private fun BackupSection(viewModel: SettingsViewModel, prefs: UserPreferences) {
     val backupState by viewModel.backupState.collectAsState()
+    val restoreState by viewModel.restoreState.collectAsState()
     var showTimePicker by remember { mutableStateOf(false) }
+    var pendingRestoreUri by remember { mutableStateOf<android.net.Uri?>(null) }
     val timeFormatter = remember { DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT) }
     val context = LocalContext.current
 
@@ -220,6 +224,10 @@ private fun BackupSection(viewModel: SettingsViewModel, prefs: UserPreferences) 
             )
             viewModel.onBackupFolderSelected(uri)
         }
+    }
+
+    val restoreFilePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) pendingRestoreUri = uri
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -278,6 +286,37 @@ private fun BackupSection(viewModel: SettingsViewModel, prefs: UserPreferences) 
                 Text(it, style = MaterialTheme.typography.bodySmall)
             }
         }
+
+        OutlinedButton(
+            onClick = { restoreFilePicker.launch(arrayOf("*/*")) },
+            enabled = !restoreState.isRunning,
+            shape = TempoExtraShapes.pill,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            if (restoreState.isRunning) {
+                CircularProgressIndicator(modifier = Modifier.padding(end = 8.dp))
+            } else {
+                Icon(Icons.Filled.CloudDownload, contentDescription = null)
+            }
+            Text("  Restore from backup file")
+        }
+        restoreState.errorMessage?.let {
+            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+        }
+    }
+
+    pendingRestoreUri?.let { uri ->
+        RestoreConfirmDialog(
+            onDismiss = { pendingRestoreUri = null },
+            onConfirm = {
+                pendingRestoreUri = null
+                viewModel.restoreFrom(uri)
+            },
+        )
+    }
+
+    if (restoreState.restoredSuccessfully) {
+        RestoreCompleteDialog(onRestart = { restartApp(context) })
     }
 
     if (showTimePicker) {
@@ -313,6 +352,44 @@ private fun BackupTimePickerDialog(
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     TextButton(onClick = onDismiss) { Text("Cancel") }
                     Button(onClick = { onConfirm(state.hour, state.minute) }, shape = TempoExtraShapes.pill) { Text("Set") }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RestoreConfirmDialog(onDismiss: () -> Unit, onConfirm: () -> Unit) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(shape = TempoExtraShapes.card, color = MaterialTheme.colorScheme.surface) {
+            Column(modifier = Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Text("Restore from backup?", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "This replaces every habit, task, routine, mood entry, and goal currently in " +
+                        "Tempo with what's in the backup file. This can't be undone.",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = onDismiss) { Text("Cancel") }
+                    Button(onClick = onConfirm, shape = TempoExtraShapes.pill) { Text("Restore") }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RestoreCompleteDialog(onRestart: () -> Unit) {
+    Dialog(onDismissRequest = {}) {
+        Surface(shape = TempoExtraShapes.card, color = MaterialTheme.colorScheme.surface) {
+            Column(modifier = Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Text("Backup restored", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "Tempo needs to restart to load the restored data.",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Button(onClick = onRestart, shape = TempoExtraShapes.pill, modifier = Modifier.fillMaxWidth()) {
+                    Text("Restart now")
                 }
             }
         }
