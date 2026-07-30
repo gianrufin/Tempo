@@ -209,25 +209,35 @@ private fun RingTimeDisplay(
     Box(modifier = Modifier.size(220.dp).scale(pulse), contentAlignment = Alignment.Center) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val strokeWidth = 14.dp.toPx()
-            drawArc(
+            val ringRadius = (minOf(size.width, size.height) - strokeWidth) / 2f
+
+            // A full 360° drawArc leaves a visible seam where the stroke starts/ends instead of
+            // closing cleanly — drawCircle doesn't have that problem, so it's used for the track
+            // and for the progress arc itself whenever it's (at least visually) a complete loop.
+            drawCircle(
                 color = ringColor.copy(alpha = 0.15f),
-                startAngle = -90f,
-                sweepAngle = 360f,
-                useCenter = false,
+                radius = ringRadius,
                 style = Stroke(width = strokeWidth),
-                size = Size(size.width - strokeWidth, size.height - strokeWidth),
-                topLeft = Offset(strokeWidth / 2, strokeWidth / 2),
             )
+
             val sweep = animatedProgress.coerceIn(0f, 1f) * 360f
-            drawArc(
-                color = ringColor,
-                startAngle = -90f,
-                sweepAngle = sweep,
-                useCenter = false,
-                style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
-                size = Size(size.width - strokeWidth, size.height - strokeWidth),
-                topLeft = Offset(strokeWidth / 2, strokeWidth / 2),
-            )
+            if (sweep >= 359.9f) {
+                drawCircle(
+                    color = ringColor,
+                    radius = ringRadius,
+                    style = Stroke(width = strokeWidth),
+                )
+            } else if (sweep > 0f) {
+                drawArc(
+                    color = ringColor,
+                    startAngle = -90f,
+                    sweepAngle = sweep,
+                    useCenter = false,
+                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
+                    size = Size(ringRadius * 2, ringRadius * 2),
+                    topLeft = Offset((size.width - ringRadius * 2) / 2f, (size.height - ringRadius * 2) / 2f),
+                )
+            }
         }
         Text(text = timeText, style = MaterialTheme.typography.displayMedium)
     }
