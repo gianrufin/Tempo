@@ -27,6 +27,9 @@ interface HabitCompletionDao {
     @Query("SELECT * FROM habit_completions")
     fun observeAll(): Flow<List<HabitCompletionEntity>>
 
+    @Query("SELECT * FROM habit_completions ORDER BY habitId ASC, date ASC")
+    suspend fun getAll(): List<HabitCompletionEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(completion: HabitCompletionEntity)
 

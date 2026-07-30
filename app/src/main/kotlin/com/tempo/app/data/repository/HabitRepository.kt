@@ -4,6 +4,8 @@ import com.tempo.app.domain.model.DayAggregate
 import com.tempo.app.domain.model.Habit
 import com.tempo.app.domain.model.HabitDetail
 import com.tempo.app.domain.model.HabitWithTodayStatus
+import com.tempo.app.domain.model.InsightsPeriod
+import com.tempo.app.domain.model.InsightsSummary
 import kotlinx.coroutines.flow.Flow
 import java.time.LocalDate
 import java.time.YearMonth
@@ -24,4 +26,10 @@ interface HabitRepository {
 
     /** Per-day scheduled/done/excused counts across all habits, for the month Calendar screen. */
     fun observeMonthAggregate(month: YearMonth): Flow<List<DayAggregate>>
+
+    /** Rolling completion-rate summary across all habits for [period]. */
+    fun observeInsights(period: InsightsPeriod): Flow<InsightsSummary>
+
+    /** All habits (including archived) and their full completion history, as CSV text. */
+    suspend fun exportAllCompletionsCsv(): String
 }

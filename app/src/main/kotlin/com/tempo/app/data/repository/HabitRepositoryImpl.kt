@@ -9,8 +9,11 @@ import com.tempo.app.domain.model.DayAggregate
 import com.tempo.app.domain.model.Habit
 import com.tempo.app.domain.model.HabitCompletionStatus
 import com.tempo.app.domain.model.HabitDetail
+import com.tempo.app.domain.model.HabitInsight
 import com.tempo.app.domain.model.HabitWithTodayStatus
 import com.tempo.app.domain.model.HeatmapDay
+import com.tempo.app.domain.model.InsightsPeriod
+import com.tempo.app.domain.model.InsightsSummary
 import com.tempo.app.domain.model.RecurrenceRule
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -213,4 +216,56 @@ class HabitRepositoryImpl @Inject constructor(
                 DayAggregate(date, scheduledCount, doneCount, excusedCount)
             }
         }
+
+    override fun observeInsights(period: InsightsPeriod): Flow<InsightsSummary> =
+        combine(habitDao.observeActive(), completionDao.observeAll()) { entities, completions ->
+            val completionsByHabit = completions.groupBy { it.habitId }
+            val today = LocalDate.now()
+            val periodStart = today.minusDays((period.days - 1).toLong())
+
+            val insights = entities.map { entity ->
+                val habit = entity.toDomain()
+                val completionsByDate = completionsByHabit[entity.id].orEmpty().associate { it.date to it.status }
+                var scheduled = 0
+                var done = 0
+                var excused = 0
+                var date = maxOf(periodStart, habit.createdAt)
+                while (!date.isAfter(today)) {
+                    if (isEffectivelyScheduled(habit, date, completionsByDate)) {
+                        scheduled++
+                        when (completionsByDate[date]) {
+                            HabitCompletionStatus.DONE -> done++
+                            HabitCompletionStatus.SKIPPED_EXCUSED -> excused++
+                            else -> Unit
+                        }
+                    }
+                    date = date.plusDays(1)
+                }
+                HabitInsight(habit, scheduled, done, excused)
+            }
+
+            val totalScheduled = insights.sumOf { it.scheduledCount }
+            val totalSatisfied = insights.sumOf { it.doneCount + it.excusedCount }
+            val overallRate = if (totalScheduled == 0) 0 else (totalSatisfied * 100) / totalScheduled
+
+            InsightsSummary(period, insights, overallRate)
+        }
+
+    override suspend fun exportAllCompletionsCsv(): String {
+        val habitsById = habitDao.getAll().associateBy { it.id }
+        val completions = completionDao.getAll()
+        val builder = StringBuilder("habit_name,date,status,completed_at\n")
+        completions.forEach { completion ->
+            val name = habitsById[completion.habitId]?.name?.replace(",", " ") ?: "unknown"
+            builder.append(name)
+                .append(',')
+                .append(completion.date)
+                .append(',')
+                .append(completion.status.name)
+                .append(',')
+                .append(completion.completedAt?.toString().orEmpty())
+                .append('\n')
+        }
+        return builder.toString()
+    }
 }
