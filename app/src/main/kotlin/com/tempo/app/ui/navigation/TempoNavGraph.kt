@@ -19,15 +19,18 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.tempo.app.ui.screens.calendar.CalendarScreen
 import com.tempo.app.ui.screens.habit.AddEditHabitScreen
+import com.tempo.app.ui.screens.habit.HabitDetailScreen
 import com.tempo.app.ui.screens.insights.InsightsScreen
 import com.tempo.app.ui.screens.settings.SettingsScreen
 import com.tempo.app.ui.screens.today.TodayScreen
 
 private const val HABIT_ID_ARG = "habitId"
-private const val ROUTE_ADD_EDIT_HABIT = "habit/{$HABIT_ID_ARG}"
+private const val ROUTE_ADD_EDIT_HABIT = "habit/edit/{$HABIT_ID_ARG}"
+private const val ROUTE_HABIT_DETAIL = "habit/detail/{$HABIT_ID_ARG}"
 
-private fun editHabitRoute(habitId: Long) = "habit/$habitId"
-private fun addHabitRoute() = "habit/0"
+private fun editHabitRoute(habitId: Long) = "habit/edit/$habitId"
+private fun addHabitRoute() = "habit/edit/0"
+private fun habitDetailRoute(habitId: Long) = "habit/detail/$habitId"
 
 @Composable
 fun TempoApp(navController: NavHostController = rememberNavController()) {
@@ -46,7 +49,7 @@ fun TempoApp(navController: NavHostController = rememberNavController()) {
             composable(TempoDestination.Today.route) {
                 TodayScreen(
                     onAddHabit = { navController.navigate(addHabitRoute()) },
-                    onEditHabit = { habitId -> navController.navigate(editHabitRoute(habitId)) },
+                    onEditHabit = { habitId -> navController.navigate(habitDetailRoute(habitId)) },
                 )
             }
             composable(TempoDestination.Calendar.route) { CalendarScreen() }
@@ -57,6 +60,15 @@ fun TempoApp(navController: NavHostController = rememberNavController()) {
                 arguments = listOf(navArgument(HABIT_ID_ARG) { type = NavType.LongType; defaultValue = 0L }),
             ) {
                 AddEditHabitScreen(onDone = { navController.popBackStack() })
+            }
+            composable(
+                route = ROUTE_HABIT_DETAIL,
+                arguments = listOf(navArgument(HABIT_ID_ARG) { type = NavType.LongType }),
+            ) {
+                HabitDetailScreen(
+                    onBack = { navController.popBackStack() },
+                    onEdit = { habitId -> navController.navigate(editHabitRoute(habitId)) },
+                )
             }
         }
     }

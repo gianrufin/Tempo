@@ -5,15 +5,19 @@ import com.tempo.app.data.local.dao.HabitDao
 import com.tempo.app.data.local.entity.HabitCompletionEntity
 import com.tempo.app.domain.RecurrenceEngine
 import com.tempo.app.domain.StreakCalculator
+import com.tempo.app.domain.model.DayAggregate
 import com.tempo.app.domain.model.Habit
 import com.tempo.app.domain.model.HabitCompletionStatus
+import com.tempo.app.domain.model.HabitDetail
 import com.tempo.app.domain.model.HabitWithTodayStatus
+import com.tempo.app.domain.model.HeatmapDay
 import com.tempo.app.domain.model.RecurrenceRule
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import java.time.Instant
 import java.time.LocalDate
+import java.time.YearMonth
 import javax.inject.Inject
 
 class HabitRepositoryImpl @Inject constructor(
@@ -135,4 +139,78 @@ class HabitRepositoryImpl @Inject constructor(
             .count { it.status == HabitCompletionStatus.SKIPPED_EXCUSED }
         return (habit.streakFreezeAllowance - excusedThisWeek).coerceAtLeast(0)
     }
+
+    override fun observeHabitDetail(habitId: Long, heatmapDays: Int): Flow<HabitDetail?> =
+        combine(habitDao.observeById(habitId), completionDao.observeForHabit(habitId)) { entity, completions ->
+            if (entity == null) return@combine null
+            val habit = entity.toDomain()
+            val completionsByDate = completions.associate { it.date to it.status }
+            val today = LocalDate.now()
+
+            val streak = StreakCalculator.calculate(habit.recurrenceRule, habit.createdAt, completionsByDate, today)
+
+            val rateWindowStart = maxOf(habit.createdAt, today.minusDays(29))
+            var scheduledInWindow = 0
+            var satisfiedInWindow = 0
+            var date = rateWindowStart
+            while (!date.isAfter(today)) {
+                if (isEffectivelyScheduled(habit, date, completionsByDate)) {
+                    scheduledInWindow++
+                    if (completionsByDate[date] == HabitCompletionStatus.DONE ||
+                        completionsByDate[date] == HabitCompletionStatus.SKIPPED_EXCUSED
+                    ) {
+                        satisfiedInWindow++
+                    }
+                }
+                date = date.plusDays(1)
+            }
+            val completionRate = if (scheduledInWindow == 0) 0 else (satisfiedInWindow * 100) / scheduledInWindow
+
+            val heatmapStart = maxOf(habit.createdAt, today.minusDays((heatmapDays - 1).toLong()))
+            val heatmap = generateSequence(heatmapStart) { it.plusDays(1) }
+                .takeWhile { !it.isAfter(today) }
+                .map { d ->
+                    HeatmapDay(
+                        date = d,
+                        scheduled = isEffectivelyScheduled(habit, d, completionsByDate),
+                        status = completionsByDate[d],
+                    )
+                }
+                .toList()
+
+            HabitDetail(
+                habit = habit,
+                currentStreak = streak.current,
+                bestStreak = streak.best,
+                completionRatePercent = completionRate,
+                heatmap = heatmap,
+            )
+        }
+
+    override fun observeMonthAggregate(month: YearMonth): Flow<List<DayAggregate>> =
+        combine(habitDao.observeActive(), completionDao.observeAll()) { entities, completions ->
+            val completionsByHabit = completions.groupBy { it.habitId }
+            val habits = entities.map { entity ->
+                entity.id to (entity.toDomain() to completionsByHabit[entity.id].orEmpty().associate { it.date to it.status })
+            }
+            (1..month.lengthOfMonth()).map { day ->
+                val date = month.atDay(day)
+                var scheduledCount = 0
+                var doneCount = 0
+                var excusedCount = 0
+                habits.forEach { (_, pair) ->
+                    val (habit, completionsByDate) = pair
+                    if (date.isBefore(habit.createdAt)) return@forEach
+                    if (isEffectivelyScheduled(habit, date, completionsByDate)) {
+                        scheduledCount++
+                        when (completionsByDate[date]) {
+                            HabitCompletionStatus.DONE -> doneCount++
+                            HabitCompletionStatus.SKIPPED_EXCUSED -> excusedCount++
+                            else -> Unit
+                        }
+                    }
+                }
+                DayAggregate(date, scheduledCount, doneCount, excusedCount)
+            }
+        }
 }
