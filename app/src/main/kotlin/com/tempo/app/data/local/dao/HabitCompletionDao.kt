@@ -30,6 +30,12 @@ interface HabitCompletionDao {
     @Query("SELECT * FROM habit_completions ORDER BY habitId ASC, date ASC")
     suspend fun getAll(): List<HabitCompletionEntity>
 
+    @Query(
+        "SELECT * FROM habit_completions WHERE habitId = :habitId AND status = 'DONE' " +
+            "ORDER BY date DESC LIMIT :limit",
+    )
+    suspend fun getRecentDone(habitId: Long, limit: Int): List<HabitCompletionEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(completion: HabitCompletionEntity)
 

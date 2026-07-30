@@ -21,6 +21,9 @@ interface HabitRepository {
     /** Cycles a habit's status for [date]: none -> done -> excused (if freezes remain) -> none. */
     suspend fun cycleCompletion(habitId: Long, date: LocalDate)
 
+    /** Directly marks [date] as an excused/frozen day, if the habit has freezes left this week. */
+    suspend fun markExcused(habitId: Long, date: LocalDate)
+
     /** Streak, completion rate, and a trailing heatmap for a single habit's detail screen. */
     fun observeHabitDetail(habitId: Long, heatmapDays: Int = 98): Flow<HabitDetail?>
 

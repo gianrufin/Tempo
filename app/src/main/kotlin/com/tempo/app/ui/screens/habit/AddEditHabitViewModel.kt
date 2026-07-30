@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.LocalTime
 import javax.inject.Inject
 
 enum class RecurrenceType { DAILY, SPECIFIC_WEEKDAYS, EVERY_N_DAYS, TIMES_PER_WEEK, MONTHLY_BY_DATE }
@@ -28,6 +29,7 @@ data class AddEditHabitUiState(
     val monthlyDayOfMonth: Int = 1,
     val streakFreezeAllowance: Int = 1,
     val graceDays: Int = 1,
+    val reminderTimes: List<LocalTime> = emptyList(),
     val isSaved: Boolean = false,
 ) {
     val isValid: Boolean get() = name.isNotBlank()
@@ -70,6 +72,10 @@ class AddEditHabitViewModel @Inject constructor(
     fun onMonthlyDayChange(value: Int) = update { it.copy(monthlyDayOfMonth = value.coerceIn(1, 31)) }
     fun onStreakFreezeAllowanceChange(value: Int) = update { it.copy(streakFreezeAllowance = value.coerceIn(0, 7)) }
     fun onGraceDaysChange(value: Int) = update { it.copy(graceDays = value.coerceIn(0, 7)) }
+    fun onAddReminderTime(time: LocalTime) = update {
+        if (time in it.reminderTimes) it else it.copy(reminderTimes = (it.reminderTimes + time).sorted())
+    }
+    fun onRemoveReminderTime(time: LocalTime) = update { it.copy(reminderTimes = it.reminderTimes - time) }
 
     fun save() {
         val state = _uiState.value
@@ -85,6 +91,7 @@ class AddEditHabitViewModel @Inject constructor(
                         recurrenceRule = recurrenceRule,
                         streakFreezeAllowance = state.streakFreezeAllowance,
                         graceDays = state.graceDays,
+                        reminderTimes = state.reminderTimes,
                         createdAt = LocalDate.now(),
                     ),
                 )
@@ -98,6 +105,7 @@ class AddEditHabitViewModel @Inject constructor(
                         recurrenceRule = recurrenceRule,
                         streakFreezeAllowance = state.streakFreezeAllowance,
                         graceDays = state.graceDays,
+                        reminderTimes = state.reminderTimes,
                     ),
                 )
             }
@@ -125,6 +133,7 @@ class AddEditHabitViewModel @Inject constructor(
             colorArgb = colorArgb,
             streakFreezeAllowance = streakFreezeAllowance,
             graceDays = graceDays,
+            reminderTimes = reminderTimes,
         )
         return when (val rule = recurrenceRule) {
             is RecurrenceRule.Daily -> base.copy(recurrenceType = RecurrenceType.DAILY)

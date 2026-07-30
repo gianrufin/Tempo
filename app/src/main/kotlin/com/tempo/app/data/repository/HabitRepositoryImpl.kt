@@ -134,6 +134,18 @@ class HabitRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun markExcused(habitId: Long, date: LocalDate) {
+        if (freezesRemaining(habitId, date) <= 0) return
+        completionDao.upsert(
+            HabitCompletionEntity(
+                habitId = habitId,
+                date = date,
+                status = HabitCompletionStatus.SKIPPED_EXCUSED,
+                completedAt = null,
+            ),
+        )
+    }
+
     private suspend fun freezesRemaining(habitId: Long, date: LocalDate): Int {
         val habit = habitDao.getById(habitId)?.toDomain() ?: return 0
         val weekStart = RecurrenceEngine.startOfWeek(date)
