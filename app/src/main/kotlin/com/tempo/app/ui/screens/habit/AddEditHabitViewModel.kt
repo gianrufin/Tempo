@@ -1,12 +1,15 @@
 package com.tempo.app.ui.screens.habit
 
+import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tempo.app.data.repository.HabitRepository
 import com.tempo.app.domain.model.Habit
 import com.tempo.app.domain.model.RecurrenceRule
+import com.tempo.app.widget.WidgetRefresher
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -43,6 +46,7 @@ data class AddEditHabitUiState(
 @HiltViewModel
 class AddEditHabitViewModel @Inject constructor(
     private val repository: HabitRepository,
+    @ApplicationContext private val appContext: Context,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -109,6 +113,7 @@ class AddEditHabitViewModel @Inject constructor(
                     ),
                 )
             }
+            WidgetRefresher.refresh(appContext)
             _uiState.value = _uiState.value.copy(isSaved = true)
         }
     }
@@ -117,6 +122,7 @@ class AddEditHabitViewModel @Inject constructor(
         val id = _uiState.value.habitId ?: return
         viewModelScope.launch {
             repository.archiveHabit(id)
+            WidgetRefresher.refresh(appContext)
             _uiState.value = _uiState.value.copy(isSaved = true)
         }
     }

@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.core.app.NotificationManagerCompat
 import com.tempo.app.data.repository.HabitRepository
+import com.tempo.app.widget.WidgetRefresher
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -33,6 +34,7 @@ class ReminderActionReceiver : BroadcastReceiver() {
                 if (notificationId != -1) {
                     NotificationManagerCompat.from(context).cancel(notificationId)
                 }
+                WidgetRefresher.refresh(context)
             } finally {
                 pendingResult.finish()
             }
