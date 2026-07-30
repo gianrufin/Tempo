@@ -23,20 +23,27 @@ import com.tempo.app.ui.screens.habit.HabitDetailScreen
 import com.tempo.app.ui.screens.insights.InsightsScreen
 import com.tempo.app.ui.screens.routine.AddEditRoutineScreen
 import com.tempo.app.ui.screens.settings.SettingsScreen
+import com.tempo.app.ui.screens.tasks.AddEditTaskScreen
+import com.tempo.app.ui.screens.tasks.TaskListScreen
 import com.tempo.app.ui.screens.timer.TimerScreen
 import com.tempo.app.ui.screens.today.TodayScreen
 
 private const val HABIT_ID_ARG = "habitId"
 private const val ROUTINE_ID_ARG = "routineId"
+private const val TASK_ID_ARG = "taskId"
 private const val ROUTE_ADD_EDIT_HABIT = "habit/edit/{$HABIT_ID_ARG}?$ROUTINE_ID_ARG={$ROUTINE_ID_ARG}"
 private const val ROUTE_HABIT_DETAIL = "habit/detail/{$HABIT_ID_ARG}"
 private const val ROUTE_ADD_EDIT_ROUTINE = "routine/edit/{$ROUTINE_ID_ARG}"
+private const val ROUTE_ADD_EDIT_TASK = "task/edit/{$TASK_ID_ARG}"
+private const val ROUTE_SETTINGS = "settings"
 
 private fun editHabitRoute(habitId: Long) = "habit/edit/$habitId"
 private fun addHabitRoute() = "habit/edit/0"
 private fun habitDetailRoute(habitId: Long) = "habit/detail/$habitId"
 private fun editRoutineRoute(routineId: Long) = "routine/edit/$routineId"
 private fun addRoutineRoute() = "routine/edit/0"
+private fun editTaskRoute(taskId: Long) = "task/edit/$taskId"
+private fun addTaskRoute() = "task/edit/0"
 
 /**
  * A plain Box, not a Scaffold: the floating pill nav is an overlay drawn on top of the current
@@ -62,12 +69,25 @@ fun TempoApp(navController: NavHostController = rememberNavController()) {
                     onAddRoutine = { navController.navigate(addRoutineRoute()) },
                     onOpenHabit = { habitId -> navController.navigate(habitDetailRoute(habitId)) },
                     onOpenRoutine = { routineId -> navController.navigate(editRoutineRoute(routineId)) },
+                    onOpenSettings = { navController.navigate(ROUTE_SETTINGS) },
                 )
             }
             composable(TempoDestination.Calendar.route) { CalendarScreen() }
+            composable(TempoDestination.Tasks.route) {
+                TaskListScreen(
+                    onAddTask = { navController.navigate(addTaskRoute()) },
+                    onOpenTask = { taskId -> navController.navigate(editTaskRoute(taskId)) },
+                )
+            }
             composable(TempoDestination.Insights.route) { InsightsScreen() }
             composable(TempoDestination.Timer.route) { TimerScreen() }
-            composable(TempoDestination.Settings.route) { SettingsScreen() }
+            composable(ROUTE_SETTINGS) { SettingsScreen() }
+            composable(
+                route = ROUTE_ADD_EDIT_TASK,
+                arguments = listOf(navArgument(TASK_ID_ARG) { type = NavType.LongType; defaultValue = 0L }),
+            ) {
+                AddEditTaskScreen(onDone = { navController.popBackStack() })
+            }
             composable(
                 route = ROUTE_ADD_EDIT_HABIT,
                 arguments = listOf(

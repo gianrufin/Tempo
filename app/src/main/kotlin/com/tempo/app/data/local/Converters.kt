@@ -3,6 +3,7 @@ package com.tempo.app.data.local
 import androidx.room.TypeConverter
 import com.tempo.app.domain.model.HabitCompletionStatus
 import com.tempo.app.domain.model.RecurrenceRule
+import com.tempo.app.domain.model.TaskPriority
 import com.tempo.app.domain.model.TimeOfDay
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
@@ -45,6 +46,18 @@ class Converters {
 
     @TypeConverter
     fun toRecurrenceRule(value: String): RecurrenceRule = json.decodeFromString(value)
+
+    @TypeConverter
+    fun fromNullableRecurrenceRule(rule: RecurrenceRule?): String? = rule?.let { json.encodeToString(it) }
+
+    @TypeConverter
+    fun toNullableRecurrenceRule(value: String?): RecurrenceRule? = value?.let { json.decodeFromString(it) }
+
+    @TypeConverter
+    fun fromTaskPriority(priority: TaskPriority): String = priority.name
+
+    @TypeConverter
+    fun toTaskPriority(value: String): TaskPriority = TaskPriority.valueOf(value)
 
     @TypeConverter
     fun fromCompletionStatus(status: HabitCompletionStatus): String = status.name

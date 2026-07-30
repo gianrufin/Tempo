@@ -41,7 +41,7 @@ data class AddEditHabitUiState(
     val isValid: Boolean get() = name.isNotBlank()
 
     companion object {
-        val DEFAULT_ICONS = listOf("💧", "🏃", "📚", "🧘", "🛌", "✍️", "🥗", "💪")
+        val DEFAULT_ICONS = listOf("💧", "🏃", "📚", "🧘", "🛌", "✍️", "🥗", "💪", "🐕")
         val DEFAULT_COLORS = listOf(0xFF6750A4L, 0xFF386A20L, 0xFFB3261EL, 0xFF7D5260L, 0xFF4FC3F7L, 0xFFFF7A45L)
     }
 }

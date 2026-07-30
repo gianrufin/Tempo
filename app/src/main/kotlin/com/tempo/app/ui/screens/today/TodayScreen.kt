@@ -17,13 +17,16 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -40,6 +43,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -61,10 +65,12 @@ fun TodayScreen(
     onAddRoutine: () -> Unit = {},
     onOpenHabit: (Long) -> Unit = {},
     onOpenRoutine: (Long) -> Unit = {},
+    onOpenSettings: () -> Unit = {},
     viewModel: TodayViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
     var showAddMenu by remember { mutableStateOf(false) }
+    val listState = rememberLazyListState()
 
     Box(
         modifier = modifier
@@ -77,7 +83,7 @@ fun TodayScreen(
                 .statusBarsPadding()
                 .navigationBarsPadding(),
         ) {
-            GreetingHeader(name = state.greetingName, selectedDate = state.selectedDate)
+            GreetingHeader(name = state.greetingName, selectedDate = state.selectedDate, onOpenSettings = onOpenSettings)
             DayStrip(
                 entries = state.dayStrip,
                 selectedDate = state.selectedDate,
@@ -94,23 +100,31 @@ fun TodayScreen(
                 }
             } else {
                 LazyColumn(
+                    state = listState,
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(20.dp, 8.dp, 20.dp, 140.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    items(state.routineGroups, key = { "routine-${it.routine.id}" }) { group ->
-                        RoutineCard(group = group, onToggle = viewModel::onToggleHabit, onOpenRoutine = onOpenRoutine)
+                    itemsIndexed(state.routineGroups, key = { _, item -> "routine-${item.routine.id}" }) { index, group ->
+                        StackedItem(index = index, listState = listState) {
+                            RoutineCard(group = group, onToggle = viewModel::onToggleHabit, onOpenRoutine = onOpenRoutine)
+                        }
                     }
                     if (state.standaloneHabits.isNotEmpty()) {
+                        val headerIndex = state.routineGroups.size
                         item(key = "standalone-header") {
-                            Text(
-                                text = "Habits",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = OnGradient.textPrimary,
-                            )
+                            StackedItem(index = headerIndex, listState = listState) {
+                                Text(
+                                    text = "Habits",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = OnGradient.textPrimary,
+                                )
+                            }
                         }
-                        items(state.standaloneHabits, key = { "habit-${it.habit.id}" }) { item ->
-                            HabitRow(item = item, onToggle = { viewModel.onToggleHabit(item.habit.id) }, onClick = { onOpenHabit(item.habit.id) })
+                        itemsIndexed(state.standaloneHabits, key = { _, item -> "habit-${item.habit.id}" }) { offset, item ->
+                            StackedItem(index = headerIndex + 1 + offset, listState = listState) {
+                                HabitRow(item = item, onToggle = { viewModel.onToggleHabit(item.habit.id) }, onClick = { onOpenHabit(item.habit.id) })
+                            }
                         }
                     }
                 }
@@ -143,7 +157,7 @@ fun TodayScreen(
 }
 
 @Composable
-private fun GreetingHeader(name: String, selectedDate: LocalDate) {
+private fun GreetingHeader(name: String, selectedDate: LocalDate, onOpenSettings: () -> Unit) {
     val dateLabel = remember(selectedDate) {
         selectedDate.format(DateTimeFormatter.ofPattern("MMMM d", Locale.getDefault()))
     }
@@ -165,16 +179,45 @@ private fun GreetingHeader(name: String, selectedDate: LocalDate) {
                 color = OnGradient.textPrimary,
             )
         }
-        Surface(shape = CircleShape, color = OnGradient.surfaceStrong, modifier = Modifier.size(48.dp)) {
-            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                Text(
-                    text = name.trim().firstOrNull()?.uppercaseChar()?.toString() ?: "T",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = OnGradient.textPrimary,
-                )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Surface(shape = CircleShape, color = OnGradient.surface, modifier = Modifier.size(48.dp), onClick = onOpenSettings) {
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                    Icon(Icons.Filled.Settings, contentDescription = "Settings", tint = OnGradient.textPrimary)
+                }
+            }
+            Surface(shape = CircleShape, color = OnGradient.surfaceStrong, modifier = Modifier.size(48.dp)) {
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                    Text(
+                        text = name.trim().firstOrNull()?.uppercaseChar()?.toString() ?: "T",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = OnGradient.textPrimary,
+                    )
+                }
             }
         }
     }
+}
+
+/**
+ * Wraps a Today list item so that as it scrolls up past the top of the viewport, it shrinks,
+ * fades, and lags slightly behind the scroll offset — producing a "stacked cards peeking behind
+ * each other" look instead of items simply disappearing off-screen.
+ */
+@Composable
+private fun StackedItem(index: Int, listState: LazyListState, content: @Composable () -> Unit) {
+    Box(
+        modifier = Modifier.graphicsLayer {
+            val itemInfo = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == index }
+            if (itemInfo != null && itemInfo.offset < 0) {
+                val overshoot = -itemInfo.offset.toFloat()
+                val depth = (overshoot / 60f).coerceIn(0f, 3f)
+                translationY = overshoot - (depth * 10f)
+                scaleX = 1f - depth * 0.04f
+                scaleY = 1f - depth * 0.04f
+                alpha = 1f - depth * 0.15f
+            }
+        },
+    ) { content() }
 }
 
 /** A horizontally scrollable date rail; each cell shows a slim progress bar reflecting that day's completion. */

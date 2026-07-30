@@ -6,6 +6,8 @@ import com.tempo.app.data.local.TempoDatabase
 import com.tempo.app.data.local.dao.HabitCompletionDao
 import com.tempo.app.data.local.dao.HabitDao
 import com.tempo.app.data.local.dao.RoutineDao
+import com.tempo.app.data.local.dao.TaskCompletionDao
+import com.tempo.app.data.local.dao.TaskDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -33,4 +35,10 @@ object DatabaseModule {
 
     @Provides
     fun provideRoutineDao(database: TempoDatabase): RoutineDao = database.routineDao()
+
+    @Provides
+    fun provideTaskDao(database: TempoDatabase): TaskDao = database.taskDao()
+
+    @Provides
+    fun provideTaskCompletionDao(database: TempoDatabase): TaskCompletionDao = database.taskCompletionDao()
 }
