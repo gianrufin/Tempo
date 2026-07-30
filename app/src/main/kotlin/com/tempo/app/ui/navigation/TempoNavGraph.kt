@@ -1,11 +1,12 @@
 package com.tempo.app.ui.navigation
 
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -36,20 +37,23 @@ private fun habitDetailRoute(habitId: Long) = "habit/detail/$habitId"
 private fun editRoutineRoute(routineId: Long) = "routine/edit/$routineId"
 private fun addRoutineRoute() = "routine/edit/0"
 
+/**
+ * A plain Box, not a Scaffold: the floating pill nav is an overlay drawn on top of the current
+ * screen's own full-bleed background, not a separate opaque bottomBar slot. Using Scaffold's
+ * bottomBar here left a solid (non-transparent-looking) strip of the window's default background
+ * wherever the pill's rounded shape didn't cover the full slot width.
+ */
 @Composable
 fun TempoApp(navController: NavHostController = rememberNavController()) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     val showBottomBar = TempoDestination.entries.any { it.route == currentRoute }
 
-    Scaffold(
-        bottomBar = { if (showBottomBar) TempoBottomNavBar(navController) },
-        containerColor = Color.Transparent,
-    ) { innerPadding ->
+    Box(modifier = Modifier.fillMaxSize()) {
         NavHost(
             navController = navController,
             startDestination = TempoDestination.Today.route,
-            modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding()),
+            modifier = Modifier.fillMaxSize(),
         ) {
             composable(TempoDestination.Today.route) {
                 TodayScreen(
@@ -90,11 +94,20 @@ fun TempoApp(navController: NavHostController = rememberNavController()) {
                 )
             }
         }
+
+        if (showBottomBar) {
+            TempoBottomNavBar(
+                navController = navController,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding(),
+            )
+        }
     }
 }
 
 @Composable
-private fun TempoBottomNavBar(navController: NavHostController) {
+private fun TempoBottomNavBar(navController: NavHostController, modifier: Modifier = Modifier) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
@@ -113,5 +126,5 @@ private fun TempoBottomNavBar(navController: NavHostController) {
             },
         )
     }
-    FloatingBottomNav(items = items)
+    FloatingBottomNav(items = items, modifier = modifier)
 }

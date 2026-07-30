@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -33,10 +34,15 @@ fun GradientTopBar(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .background(gradient)
-            .padding(horizontal = 16.dp, vertical = 20.dp),
+            .background(gradient),
     ) {
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             if (onBack != null && backIcon != null) {
                 GradientIconButton(icon = backIcon, contentDescription = "Back", onClick = onBack)
                 Box(modifier = Modifier.size(12.dp))

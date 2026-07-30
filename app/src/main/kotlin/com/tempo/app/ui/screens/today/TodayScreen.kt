@@ -11,8 +11,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -70,7 +72,12 @@ fun TodayScreen(
             .fillMaxSize()
             .background(TempoGradients.home),
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding(),
+        ) {
             GreetingHeader(name = state.greetingName)
             TimeOfDayToggle(selected = state.selectedTimeOfDay, onSelect = viewModel::onSelectTimeOfDay)
 
@@ -85,7 +92,7 @@ fun TodayScreen(
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp, 8.dp, 16.dp, 140.dp),
+                    contentPadding = PaddingValues(20.dp, 8.dp, 20.dp, 140.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
                     items(state.routineGroups, key = { "routine-${it.routine.id}" }) { group ->
@@ -110,7 +117,8 @@ fun TodayScreen(
         Box(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(end = 24.dp, bottom = 100.dp),
+                .navigationBarsPadding()
+                .padding(end = 20.dp, bottom = 88.dp),
         ) {
             Surface(
                 shape = CircleShape,
