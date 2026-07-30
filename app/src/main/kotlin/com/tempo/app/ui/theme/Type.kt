@@ -1,6 +1,7 @@
 package com.tempo.app.ui.theme
 
 import androidx.compose.material3.Typography
+import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -10,6 +11,7 @@ import androidx.compose.ui.unit.sp
 import com.tempo.app.R
 
 /** Space Grotesk is a single variable-weight font file; each weight is the same resource with a different `wght` axis setting. */
+@OptIn(ExperimentalTextApi::class)
 val SpaceGrotesk = FontFamily(
     Font(R.font.space_grotesk, weight = FontWeight.Normal, variationSettings = FontVariation.Settings(FontVariation.weight(400))),
     Font(R.font.space_grotesk, weight = FontWeight.Medium, variationSettings = FontVariation.Settings(FontVariation.weight(500))),
