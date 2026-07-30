@@ -21,15 +21,21 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -39,6 +45,7 @@ import com.tempo.app.ui.theme.OnGradient
 import com.tempo.app.ui.theme.TempoExtraShapes
 import com.tempo.app.ui.theme.TempoGradients
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TaskListScreen(
     modifier: Modifier = Modifier,
@@ -89,7 +96,12 @@ fun TaskListScreen(
                             )
                         }
                         items(state.singleTasks, key = { "single-${it.task.id}" }) { item ->
-                            TaskRow(item = item, onToggle = { viewModel.onToggleTask(item.task.id) }, onClick = { onOpenTask(item.task.id) })
+                            TaskRow(
+                                item = item,
+                                onToggle = { viewModel.onToggleTask(item.task.id) },
+                                onArchive = { viewModel.onArchiveTask(item.task.id) },
+                                onClick = { onOpenTask(item.task.id) },
+                            )
                         }
                     }
                     if (state.recurringTasks.isNotEmpty()) {
@@ -101,7 +113,12 @@ fun TaskListScreen(
                             )
                         }
                         items(state.recurringTasks, key = { "recurring-${it.task.id}" }) { item ->
-                            TaskRow(item = item, onToggle = { viewModel.onToggleTask(item.task.id) }, onClick = { onOpenTask(item.task.id) })
+                            TaskRow(
+                                item = item,
+                                onToggle = { viewModel.onToggleTask(item.task.id) },
+                                onArchive = { viewModel.onArchiveTask(item.task.id) },
+                                onClick = { onOpenTask(item.task.id) },
+                            )
                         }
                     }
                 }
@@ -125,9 +142,26 @@ fun TaskListScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun TaskRow(item: TaskWithTodayStatus, onToggle: () -> Unit, onClick: () -> Unit) {
+private fun TaskRow(item: TaskWithTodayStatus, onToggle: () -> Unit, onArchive: () -> Unit, onClick: () -> Unit) {
     val done = item.isDoneForDate
+    val dismissState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { value ->
+            when (value) {
+                SwipeToDismissBoxValue.StartToEnd -> onToggle()
+                SwipeToDismissBoxValue.EndToStart -> onArchive()
+                SwipeToDismissBoxValue.Settled -> Unit
+            }
+            false
+        },
+    )
+
+    SwipeToDismissBox(
+        state = dismissState,
+        modifier = Modifier.fillMaxWidth(),
+        backgroundContent = { TaskSwipeBackground(dismissState.dismissDirection) },
+    ) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -177,6 +211,26 @@ private fun TaskRow(item: TaskWithTodayStatus, onToggle: () -> Unit, onClick: ()
                 }
             }
         }
+    }
+    }
+}
+
+@Composable
+private fun TaskSwipeBackground(direction: SwipeToDismissBoxValue) {
+    val (icon, alignment, color) = when (direction) {
+        SwipeToDismissBoxValue.StartToEnd -> Triple(Icons.Filled.Check, Alignment.CenterStart, OnGradient.surfaceStrong)
+        SwipeToDismissBoxValue.EndToStart -> Triple(Icons.Filled.Close, Alignment.CenterEnd, OnGradient.surface)
+        SwipeToDismissBoxValue.Settled -> Triple(null, Alignment.Center, OnGradient.surface)
+    }
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(TempoExtraShapes.card)
+            .background(color)
+            .padding(horizontal = 20.dp),
+        contentAlignment = alignment,
+    ) {
+        icon?.let { Icon(it, contentDescription = null, tint = OnGradient.textPrimary) }
     }
 }
 

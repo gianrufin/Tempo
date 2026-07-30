@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -34,6 +35,7 @@ import com.tempo.app.domain.model.HabitInsight
 import com.tempo.app.domain.model.InsightsPeriod
 import com.tempo.app.domain.model.InsightsSummary
 import com.tempo.app.ui.components.shareCsv
+import com.tempo.app.ui.components.shareProgressText
 import com.tempo.app.ui.theme.TempoExtraShapes
 import kotlinx.coroutines.launch
 
@@ -83,6 +85,17 @@ fun InsightsScreen(modifier: Modifier = Modifier, viewModel: InsightsViewModel =
             }
         }
 
+        currentSummary?.let { summaryForShare ->
+            OutlinedButton(
+                onClick = { shareProgressText(context, summaryForShare.toShareText()) },
+                shape = TempoExtraShapes.pill,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Icon(Icons.Filled.Share, contentDescription = null)
+                Text("  Share progress")
+            }
+        }
+
         OutlinedButton(
             onClick = {
                 scope.launch {
@@ -95,6 +108,21 @@ fun InsightsScreen(modifier: Modifier = Modifier, viewModel: InsightsViewModel =
         ) {
             Icon(Icons.Filled.FileDownload, contentDescription = null)
             Text("  Export history as CSV")
+        }
+    }
+}
+
+private fun InsightsSummary.toShareText(): String {
+    val topHabits = habitInsights
+        .sortedByDescending { it.completionRatePercent }
+        .take(3)
+        .joinToString("\n") { "${it.habit.icon} ${it.habit.name}: ${it.completionRatePercent}%" }
+    return buildString {
+        append("My Tempo progress — ${period.label.lowercase()}\n")
+        append("Overall completion: $overallRatePercent%\n")
+        if (topHabits.isNotEmpty()) {
+            append("\nTop habits:\n")
+            append(topHabits)
         }
     }
 }

@@ -39,4 +39,8 @@ class TaskListViewModel @Inject constructor(
     fun onToggleTask(taskId: Long) {
         viewModelScope.launch { repository.toggleTaskDone(taskId, today) }
     }
+
+    fun onArchiveTask(taskId: Long) {
+        viewModelScope.launch { repository.archiveTask(taskId) }
+    }
 }

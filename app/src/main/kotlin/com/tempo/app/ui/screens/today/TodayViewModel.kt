@@ -5,7 +5,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tempo.app.data.preferences.PreferencesRepository
 import com.tempo.app.data.repository.HabitRepository
+import com.tempo.app.domain.model.Habit
+import com.tempo.app.domain.model.HabitTemplate
 import com.tempo.app.domain.model.HabitWithTodayStatus
+import com.tempo.app.domain.model.RecurrenceRule
 import com.tempo.app.domain.model.RoutineWithHabits
 import com.tempo.app.widget.WidgetRefresher
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -95,6 +98,29 @@ class TodayViewModel @Inject constructor(
     fun onToggleHabit(habitId: Long) {
         viewModelScope.launch {
             repository.cycleCompletion(habitId, _selectedDate.value)
+            WidgetRefresher.refresh(appContext)
+        }
+    }
+
+    /** Swipe-to-skip: uses a streak freeze for the selected date instead of marking the habit done. */
+    fun onSkipHabit(habitId: Long) {
+        viewModelScope.launch {
+            repository.markExcused(habitId, _selectedDate.value)
+            WidgetRefresher.refresh(appContext)
+        }
+    }
+
+    fun onQuickAddHabit(template: HabitTemplate) {
+        viewModelScope.launch {
+            repository.addHabit(
+                Habit(
+                    name = template.name,
+                    icon = template.icon,
+                    colorArgb = template.colorArgb,
+                    recurrenceRule = RecurrenceRule.Daily,
+                    createdAt = today,
+                ),
+            )
             WidgetRefresher.refresh(appContext)
         }
     }

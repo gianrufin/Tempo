@@ -26,13 +26,21 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberSwipeToDismissBoxState
+import androidx.compose.ui.window.Dialog
+import com.tempo.app.domain.model.HabitTemplate
+import com.tempo.app.domain.model.QUICK_ADD_TEMPLATES
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -58,6 +66,7 @@ import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TodayScreen(
     modifier: Modifier = Modifier,
@@ -70,6 +79,7 @@ fun TodayScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     var showAddMenu by remember { mutableStateOf(false) }
+    var showQuickAdd by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
 
     Box(
@@ -107,7 +117,12 @@ fun TodayScreen(
                 ) {
                     itemsIndexed(state.routineGroups, key = { _, item -> "routine-${item.routine.id}" }) { index, group ->
                         StackedItem(index = index, listState = listState) {
-                            RoutineCard(group = group, onToggle = viewModel::onToggleHabit, onOpenRoutine = onOpenRoutine)
+                            RoutineCard(
+                                group = group,
+                                onToggle = viewModel::onToggleHabit,
+                                onSkip = viewModel::onSkipHabit,
+                                onOpenRoutine = onOpenRoutine,
+                            )
                         }
                     }
                     if (state.standaloneHabits.isNotEmpty()) {
@@ -123,7 +138,12 @@ fun TodayScreen(
                         }
                         itemsIndexed(state.standaloneHabits, key = { _, item -> "habit-${item.habit.id}" }) { offset, item ->
                             StackedItem(index = headerIndex + 1 + offset, listState = listState) {
-                                HabitRow(item = item, onToggle = { viewModel.onToggleHabit(item.habit.id) }, onClick = { onOpenHabit(item.habit.id) })
+                                HabitRow(
+                                    item = item,
+                                    onToggle = { viewModel.onToggleHabit(item.habit.id) },
+                                    onSkip = { viewModel.onSkipHabit(item.habit.id) },
+                                    onClick = { onOpenHabit(item.habit.id) },
+                                )
                             }
                         }
                     }
@@ -151,6 +171,47 @@ fun TodayScreen(
             DropdownMenu(expanded = showAddMenu, onDismissRequest = { showAddMenu = false }) {
                 DropdownMenuItem(text = { Text("New habit") }, onClick = { showAddMenu = false; onAddHabit() })
                 DropdownMenuItem(text = { Text("New routine") }, onClick = { showAddMenu = false; onAddRoutine() })
+                DropdownMenuItem(text = { Text("Quick add") }, onClick = { showAddMenu = false; showQuickAdd = true })
+            }
+        }
+
+        if (showQuickAdd) {
+            QuickAddDialog(
+                onDismiss = { showQuickAdd = false },
+                onSelect = { template ->
+                    viewModel.onQuickAddHabit(template)
+                    showQuickAdd = false
+                },
+            )
+        }
+    }
+}
+
+@Composable
+private fun QuickAddDialog(onDismiss: () -> Unit, onSelect: (HabitTemplate) -> Unit) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(shape = TempoExtraShapes.card, color = MaterialTheme.colorScheme.surface) {
+            Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("Quick add a habit", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "One tap, daily by default — edit it later if you'd like.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                QUICK_ADD_TEMPLATES.forEach { template ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSelect(template) }
+                            .padding(vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Text(template.icon, style = MaterialTheme.typography.titleLarge)
+                        Text(template.name, style = MaterialTheme.typography.bodyLarge)
+                    }
+                }
             }
         }
     }
@@ -294,6 +355,7 @@ private val TempoAccentOnLight = androidx.compose.ui.graphics.Color(0xFF6B4CE0)
 private fun RoutineCard(
     group: RoutineWithHabits,
     onToggle: (Long) -> Unit,
+    onSkip: (Long) -> Unit,
     onOpenRoutine: (Long) -> Unit,
 ) {
     Surface(
@@ -316,20 +378,38 @@ private fun RoutineCard(
                 )
             }
             group.habits.forEach { item ->
-                HabitRow(item = item, onToggle = { onToggle(item.habit.id) }, onClick = { onToggle(item.habit.id) }, translucent = true)
+                HabitRow(
+                    item = item,
+                    onToggle = { onToggle(item.habit.id) },
+                    onSkip = { onSkip(item.habit.id) },
+                    onClick = { onToggle(item.habit.id) },
+                    translucent = true,
+                )
             }
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun HabitRow(
     item: HabitWithTodayStatus,
     onToggle: () -> Unit,
+    onSkip: () -> Unit,
     onClick: () -> Unit,
     translucent: Boolean = false,
 ) {
     val done = item.status == HabitCompletionStatus.DONE
+    val dismissState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { value ->
+            when (value) {
+                SwipeToDismissBoxValue.StartToEnd -> onToggle()
+                SwipeToDismissBoxValue.EndToStart -> onSkip()
+                SwipeToDismissBoxValue.Settled -> Unit
+            }
+            false
+        },
+    )
     val content: @Composable () -> Unit = {
         Row(
             modifier = Modifier
@@ -382,17 +462,46 @@ private fun HabitRow(
         }
     }
 
-    if (translucent) {
-        content()
+    val rowContent: @Composable () -> Unit = if (translucent) {
+        content
     } else {
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onClick),
-            shape = TempoExtraShapes.card,
-            color = OnGradient.surface,
-        ) {
-            content()
+        {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onClick),
+                shape = TempoExtraShapes.card,
+                color = OnGradient.surface,
+            ) {
+                content()
+            }
         }
+    }
+
+    SwipeToDismissBox(
+        state = dismissState,
+        modifier = Modifier.fillMaxWidth(),
+        backgroundContent = { SwipeBackground(dismissState.dismissDirection) },
+    ) {
+        rowContent()
+    }
+}
+
+@Composable
+private fun SwipeBackground(direction: SwipeToDismissBoxValue) {
+    val (icon, alignment, color) = when (direction) {
+        SwipeToDismissBoxValue.StartToEnd -> Triple(Icons.Filled.Check, Alignment.CenterStart, OnGradient.surfaceStrong)
+        SwipeToDismissBoxValue.EndToStart -> Triple(Icons.Filled.Close, Alignment.CenterEnd, OnGradient.surface)
+        SwipeToDismissBoxValue.Settled -> Triple(null, Alignment.Center, OnGradient.surface)
+    }
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(TempoExtraShapes.card)
+            .background(color)
+            .padding(horizontal = 20.dp),
+        contentAlignment = alignment,
+    ) {
+        icon?.let { Icon(it, contentDescription = null, tint = OnGradient.textPrimary) }
     }
 }
