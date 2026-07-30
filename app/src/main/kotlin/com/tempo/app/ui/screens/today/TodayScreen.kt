@@ -17,15 +17,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.NightsStay
-import androidx.compose.material.icons.filled.WbSunny
-import androidx.compose.material.icons.filled.WbTwilight
-import androidx.compose.material.icons.outlined.Brightness4
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -33,6 +31,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -40,19 +39,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.tempo.app.domain.model.HabitCompletionStatus
 import com.tempo.app.domain.model.HabitWithTodayStatus
 import com.tempo.app.domain.model.RoutineWithHabits
-import com.tempo.app.domain.model.TimeOfDay
 import com.tempo.app.ui.theme.OnGradient
 import com.tempo.app.ui.theme.TempoExtraShapes
 import com.tempo.app.ui.theme.TempoGradients
+import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.time.format.TextStyle
 import java.util.Locale
 
 @Composable
@@ -78,13 +77,17 @@ fun TodayScreen(
                 .statusBarsPadding()
                 .navigationBarsPadding(),
         ) {
-            GreetingHeader(name = state.greetingName)
-            TimeOfDayToggle(selected = state.selectedTimeOfDay, onSelect = viewModel::onSelectTimeOfDay)
+            GreetingHeader(name = state.greetingName, selectedDate = state.selectedDate)
+            DayStrip(
+                entries = state.dayStrip,
+                selectedDate = state.selectedDate,
+                onSelectDate = viewModel::onSelectDate,
+            )
 
             if (state.isEmpty) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
-                        text = "Nothing planned for ${state.selectedTimeOfDay.label.lowercase()} yet.",
+                        text = "Nothing planned for this day.",
                         color = OnGradient.textSecondary,
                         style = MaterialTheme.typography.bodyLarge,
                     )
@@ -140,12 +143,12 @@ fun TodayScreen(
 }
 
 @Composable
-private fun GreetingHeader(name: String) {
-    val today = remember { java.time.LocalDate.now() }
-    val dateLabel = remember(today) {
-        today.format(DateTimeFormatter.ofPattern("MMMM d", Locale.getDefault()))
+private fun GreetingHeader(name: String, selectedDate: LocalDate) {
+    val dateLabel = remember(selectedDate) {
+        selectedDate.format(DateTimeFormatter.ofPattern("MMMM d", Locale.getDefault()))
     }
     val greeting = if (name.isBlank()) "Hello there" else "Hello, $name"
+    val dayWord = if (selectedDate == LocalDate.now()) "Today" else selectedDate.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault())
 
     Row(
         modifier = Modifier
@@ -157,7 +160,7 @@ private fun GreetingHeader(name: String) {
         Column {
             Text(text = greeting, style = MaterialTheme.typography.bodyLarge, color = OnGradient.textSecondary)
             Text(
-                text = "Today\n$dateLabel",
+                text = "$dayWord\n$dateLabel",
                 style = MaterialTheme.typography.headlineMedium,
                 color = OnGradient.textPrimary,
             )
@@ -174,42 +177,75 @@ private fun GreetingHeader(name: String) {
     }
 }
 
+/** A horizontally scrollable date rail; each cell shows a slim progress bar reflecting that day's completion. */
 @Composable
-private fun TimeOfDayToggle(selected: TimeOfDay, onSelect: (TimeOfDay) -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+private fun DayStrip(
+    entries: List<DayStripEntry>,
+    selectedDate: LocalDate,
+    onSelectDate: (LocalDate) -> Unit,
+) {
+    val listState = rememberLazyListState()
+    val todayIndex = remember(entries) { entries.indexOfFirst { it.isToday }.coerceAtLeast(0) }
+
+    LaunchedEffect(entries.size) {
+        if (entries.isNotEmpty()) {
+            listState.scrollToItem((todayIndex - 2).coerceAtLeast(0))
+        }
+    }
+
+    LazyRow(
+        state = listState,
+        modifier = Modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(horizontal = 20.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        TimeOfDay.entries.forEach { tod ->
-            val isSelected = tod == selected
-            Surface(
-                shape = CircleShape,
-                color = if (isSelected) OnGradient.textPrimary else OnGradient.surface,
-                modifier = Modifier.size(48.dp),
-                onClick = { onSelect(tod) },
+        items(entries, key = { it.date.toEpochDay() }) { entry ->
+            DayCell(entry = entry, isSelected = entry.date == selectedDate, onClick = { onSelectDate(entry.date) })
+        }
+    }
+}
+
+@Composable
+private fun DayCell(entry: DayStripEntry, isSelected: Boolean, onClick: () -> Unit) {
+    val weekdayLabel = remember(entry.date) {
+        entry.date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault())
+    }
+    val background = if (isSelected) OnGradient.textPrimary else OnGradient.surface
+    val contentColor = if (isSelected) TempoAccentOnLight else OnGradient.textPrimary
+
+    Surface(
+        shape = TempoExtraShapes.card,
+        color = background,
+        onClick = onClick,
+        modifier = Modifier.width(56.dp),
+    ) {
+        Column(
+            modifier = Modifier.padding(vertical = 12.dp, horizontal = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(text = weekdayLabel, style = MaterialTheme.typography.labelSmall, color = contentColor.copy(alpha = 0.8f))
+            Text(text = entry.date.dayOfMonth.toString(), style = MaterialTheme.typography.titleMedium, color = contentColor)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(3.dp)
+                    .clip(TempoExtraShapes.pill)
+                    .background(contentColor.copy(alpha = 0.25f)),
             ) {
-                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                    Icon(
-                        imageVector = tod.icon(),
-                        contentDescription = tod.label,
-                        tint = if (isSelected) TempoAccentOnLight else OnGradient.textPrimary,
-                    )
-                }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(entry.completionFraction.coerceIn(0f, 1f))
+                        .height(3.dp)
+                        .clip(TempoExtraShapes.pill)
+                        .background(contentColor),
+                )
             }
         }
     }
 }
 
-private val TempoAccentOnLight = Color(0xFF6B4CE0)
-
-private fun TimeOfDay.icon(): ImageVector = when (this) {
-    TimeOfDay.MORNING -> Icons.Filled.WbTwilight
-    TimeOfDay.AFTERNOON -> Icons.Filled.WbSunny
-    TimeOfDay.EVENING -> Icons.Outlined.Brightness4
-    TimeOfDay.NIGHT -> Icons.Filled.NightsStay
-}
+private val TempoAccentOnLight = androidx.compose.ui.graphics.Color(0xFF6B4CE0)
 
 @Composable
 private fun RoutineCard(

@@ -7,30 +7,42 @@ import com.tempo.app.data.preferences.PreferencesRepository
 import com.tempo.app.data.repository.HabitRepository
 import com.tempo.app.domain.model.HabitWithTodayStatus
 import com.tempo.app.domain.model.RoutineWithHabits
-import com.tempo.app.domain.model.TimeOfDay
 import com.tempo.app.widget.WidgetRefresher
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import javax.inject.Inject
 
+data class DayStripEntry(
+    val date: LocalDate,
+    val completionFraction: Float,
+    val isToday: Boolean,
+)
+
 data class TodayUiState(
     val greetingName: String = "",
-    val today: LocalDate = LocalDate.now(),
-    val selectedTimeOfDay: TimeOfDay = TimeOfDay.forCurrentTime(),
+    val selectedDate: LocalDate = LocalDate.now(),
+    val dayStrip: List<DayStripEntry> = emptyList(),
     val routineGroups: List<RoutineWithHabits> = emptyList(),
     val standaloneHabits: List<HabitWithTodayStatus> = emptyList(),
 ) {
     val isEmpty: Boolean get() = routineGroups.isEmpty() && standaloneHabits.isEmpty()
+    val completionFraction: Float
+        get() = dayStrip.firstOrNull { it.date == selectedDate }?.completionFraction ?: 0f
 }
 
+private const val DAYS_BEFORE_TODAY = 4
+private const val DAYS_AFTER_TODAY = 10
+
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class TodayViewModel @Inject constructor(
     private val repository: HabitRepository,
@@ -38,41 +50,51 @@ class TodayViewModel @Inject constructor(
     @ApplicationContext private val appContext: Context,
 ) : ViewModel() {
 
-    val today: LocalDate = LocalDate.now()
+    private val today: LocalDate = LocalDate.now()
+    private val stripDates: List<LocalDate> = (-DAYS_BEFORE_TODAY..DAYS_AFTER_TODAY).map { today.plusDays(it.toLong()) }
 
-    private val _selectedTimeOfDay = MutableStateFlow(TimeOfDay.forCurrentTime())
+    private val _selectedDate = MutableStateFlow(today)
+
+    private val habitsForSelectedDate = _selectedDate.flatMapLatest { date -> repository.observeHabitsForDate(date) }
 
     val uiState: StateFlow<TodayUiState> = combine(
         preferencesRepository.userPreferences,
-        repository.observeHabitsForDate(today),
+        habitsForSelectedDate,
         repository.observeActiveRoutines(),
-        _selectedTimeOfDay,
-    ) { prefs, habits, routines, timeOfDay ->
-        val habitsForSlot = habits.filter { it.habit.timeOfDay == timeOfDay }
-        val routinesById = routines.filter { it.timeOfDay == timeOfDay }
+        repository.observeAggregatesForDates(stripDates),
+        _selectedDate,
+    ) { prefs, habits, routines, aggregates, selectedDate ->
+        val aggregateByDate = aggregates.associateBy { it.date }
+        val dayStrip = stripDates.map { date ->
+            DayStripEntry(
+                date = date,
+                completionFraction = aggregateByDate[date]?.completionFraction ?: 0f,
+                isToday = date == today,
+            )
+        }
 
-        val routineGroups = routinesById.mapNotNull { routine ->
-            val habitsInRoutine = habitsForSlot.filter { it.habit.routineId == routine.id }
+        val routineGroups = routines.mapNotNull { routine ->
+            val habitsInRoutine = habits.filter { it.habit.routineId == routine.id }
             if (habitsInRoutine.isEmpty()) null else RoutineWithHabits(routine, habitsInRoutine)
         }
-        val standalone = habitsForSlot.filter { it.habit.routineId == null }
+        val standalone = habits.filter { it.habit.routineId == null }
 
         TodayUiState(
             greetingName = prefs.displayName,
-            today = today,
-            selectedTimeOfDay = timeOfDay,
+            selectedDate = selectedDate,
+            dayStrip = dayStrip,
             routineGroups = routineGroups,
             standaloneHabits = standalone,
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TodayUiState(today = today))
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TodayUiState(selectedDate = today))
 
-    fun onSelectTimeOfDay(timeOfDay: TimeOfDay) {
-        _selectedTimeOfDay.value = timeOfDay
+    fun onSelectDate(date: LocalDate) {
+        _selectedDate.value = date
     }
 
     fun onToggleHabit(habitId: Long) {
         viewModelScope.launch {
-            repository.cycleCompletion(habitId, today)
+            repository.cycleCompletion(habitId, _selectedDate.value)
             WidgetRefresher.refresh(appContext)
         }
     }

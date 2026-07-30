@@ -23,6 +23,7 @@ import com.tempo.app.ui.screens.habit.HabitDetailScreen
 import com.tempo.app.ui.screens.insights.InsightsScreen
 import com.tempo.app.ui.screens.routine.AddEditRoutineScreen
 import com.tempo.app.ui.screens.settings.SettingsScreen
+import com.tempo.app.ui.screens.timer.TimerScreen
 import com.tempo.app.ui.screens.today.TodayScreen
 
 private const val HABIT_ID_ARG = "habitId"
@@ -65,6 +66,7 @@ fun TempoApp(navController: NavHostController = rememberNavController()) {
             }
             composable(TempoDestination.Calendar.route) { CalendarScreen() }
             composable(TempoDestination.Insights.route) { InsightsScreen() }
+            composable(TempoDestination.Timer.route) { TimerScreen() }
             composable(TempoDestination.Settings.route) { SettingsScreen() }
             composable(
                 route = ROUTE_ADD_EDIT_HABIT,

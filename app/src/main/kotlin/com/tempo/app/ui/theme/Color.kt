@@ -38,9 +38,10 @@ val TempoOnTertiaryDark = Color(0xFF492532)
 val TempoTertiaryContainerDark = Color(0xFF633B48)
 val TempoOnTertiaryContainerDark = Color(0xFFFFD8E4)
 
-val TempoBackgroundDark = Color(0xFF1C1B1F)
+// True black for AMOLED: darker than the M3 baseline dark surface tones.
+val TempoBackgroundDark = Color(0xFF000000)
 val TempoOnBackgroundDark = Color(0xFFE6E1E5)
-val TempoSurfaceDark = Color(0xFF1C1B1F)
+val TempoSurfaceDark = Color(0xFF000000)
 val TempoOnSurfaceDark = Color(0xFFE6E1E5)
 
 // Streak / motivation accent colors, used outside the M3 role system for

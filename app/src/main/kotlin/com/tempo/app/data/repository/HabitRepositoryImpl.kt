@@ -206,13 +206,15 @@ class HabitRepositoryImpl @Inject constructor(
         }
 
     override fun observeMonthAggregate(month: YearMonth): Flow<List<DayAggregate>> =
+        observeAggregatesForDates((1..month.lengthOfMonth()).map { month.atDay(it) })
+
+    override fun observeAggregatesForDates(dates: List<LocalDate>): Flow<List<DayAggregate>> =
         combine(habitDao.observeActive(), completionDao.observeAll()) { entities, completions ->
             val completionsByHabit = completions.groupBy { it.habitId }
             val habits = entities.map { entity ->
                 entity.id to (entity.toDomain() to completionsByHabit[entity.id].orEmpty().associate { it.date to it.status })
             }
-            (1..month.lengthOfMonth()).map { day ->
-                val date = month.atDay(day)
+            dates.map { date ->
                 var scheduledCount = 0
                 var doneCount = 0
                 var excusedCount = 0

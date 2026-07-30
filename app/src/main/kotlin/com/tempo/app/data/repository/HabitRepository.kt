@@ -31,6 +31,9 @@ interface HabitRepository {
     /** Per-day scheduled/done/excused counts across all habits, for the month Calendar screen. */
     fun observeMonthAggregate(month: YearMonth): Flow<List<DayAggregate>>
 
+    /** Per-day scheduled/done/excused counts across all habits, for an arbitrary set of dates (e.g. the Today day-strip). */
+    fun observeAggregatesForDates(dates: List<LocalDate>): Flow<List<DayAggregate>>
+
     /** Rolling completion-rate summary across all habits for [period]. */
     fun observeInsights(period: InsightsPeriod): Flow<InsightsSummary>
 
