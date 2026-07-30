@@ -1,5 +1,13 @@
 package com.tempo.app.ui.screens.timer
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -7,6 +15,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -21,7 +30,6 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -31,6 +39,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.tempo.app.domain.model.Habit
@@ -80,7 +94,12 @@ private fun PomodoroContent(state: TimerUiState, viewModel: TimerViewModel) {
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.primary,
         )
-        TimeDisplay(seconds = state.pomodoroRemainingSeconds)
+        RingTimeDisplay(
+            timeText = formatMinSec(state.pomodoroRemainingSeconds),
+            progress = state.remainingFraction,
+            isRunning = state.isRunning,
+            ringColor = if (state.pomodoroIsBreak) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary,
+        )
         TimerControls(isRunning = state.isRunning, onStart = viewModel::start, onPause = viewModel::pause, onReset = viewModel::reset)
         if (habits.isNotEmpty()) {
             LinkedHabitPicker(
@@ -116,8 +135,20 @@ private fun LinkedHabitPicker(habits: List<Habit>, linkedHabitId: Long?, onSelec
 @Composable
 private fun StopwatchContent(state: TimerUiState, viewModel: TimerViewModel) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(24.dp)) {
-        TimeDisplay(seconds = state.stopwatchElapsedSeconds)
+        val totalSeconds = state.stopwatchElapsedMillis / 1000
+        val lapFraction = (state.stopwatchElapsedMillis % 60_000) / 60_000f
+        RingTimeDisplay(
+            timeText = formatStopwatch(state.stopwatchElapsedMillis),
+            progress = lapFraction,
+            isRunning = state.isRunning,
+            ringColor = MaterialTheme.colorScheme.primary,
+        )
         TimerControls(isRunning = state.isRunning, onStart = viewModel::start, onPause = viewModel::pause, onReset = viewModel::reset)
+        Text(
+            "${totalSeconds / 60} min elapsed",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
@@ -135,21 +166,70 @@ private fun CountdownContent(state: TimerUiState, viewModel: TimerViewModel) {
                 }
             }
         }
-        TimeDisplay(seconds = state.countdownRemainingSeconds)
+        RingTimeDisplay(
+            timeText = formatMinSec(state.countdownRemainingSeconds),
+            progress = state.remainingFraction,
+            isRunning = state.isRunning,
+            ringColor = MaterialTheme.colorScheme.primary,
+        )
         TimerControls(isRunning = state.isRunning, onStart = viewModel::start, onPause = viewModel::pause, onReset = viewModel::reset)
     }
 }
 
+private fun formatMinSec(seconds: Int): String = "%02d:%02d".format(seconds / 60, seconds % 60)
+
+private fun formatStopwatch(elapsedMillis: Long): String {
+    val minutes = elapsedMillis / 60_000
+    val seconds = (elapsedMillis / 1000) % 60
+    val tenths = (elapsedMillis % 1000) / 100
+    return "%02d:%02d.%d".format(minutes, seconds, tenths)
+}
+
+/**
+ * A circular progress ring — animates smoothly toward [progress] each tick and gently pulses
+ * while [isRunning], so the timer visibly breathes instead of just swapping digits.
+ */
 @Composable
-private fun TimeDisplay(seconds: Int) {
-    val minutes = seconds / 60
-    val secs = seconds % 60
-    Surface(shape = TempoExtraShapes.pill, color = MaterialTheme.colorScheme.surfaceVariant) {
-        Text(
-            text = "%02d:%02d".format(minutes, secs),
-            style = MaterialTheme.typography.displayMedium,
-            modifier = Modifier.padding(horizontal = 40.dp, vertical = 24.dp),
-        )
+private fun RingTimeDisplay(
+    timeText: String,
+    progress: Float,
+    isRunning: Boolean,
+    ringColor: Color,
+) {
+    val animatedProgress by animateFloatAsState(targetValue = progress, label = "ring-progress")
+
+    val infiniteTransition = rememberInfiniteTransition(label = "ring-pulse")
+    val pulse by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = if (isRunning) 1.03f else 1f,
+        animationSpec = infiniteRepeatable(tween(1200, easing = LinearEasing), RepeatMode.Reverse),
+        label = "pulse",
+    )
+
+    Box(modifier = Modifier.size(220.dp).scale(pulse), contentAlignment = Alignment.Center) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val strokeWidth = 14.dp.toPx()
+            drawArc(
+                color = ringColor.copy(alpha = 0.15f),
+                startAngle = -90f,
+                sweepAngle = 360f,
+                useCenter = false,
+                style = Stroke(width = strokeWidth),
+                size = Size(size.width - strokeWidth, size.height - strokeWidth),
+                topLeft = Offset(strokeWidth / 2, strokeWidth / 2),
+            )
+            val sweep = animatedProgress.coerceIn(0f, 1f) * 360f
+            drawArc(
+                color = ringColor,
+                startAngle = -90f,
+                sweepAngle = sweep,
+                useCenter = false,
+                style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
+                size = Size(size.width - strokeWidth, size.height - strokeWidth),
+                topLeft = Offset(strokeWidth / 2, strokeWidth / 2),
+            )
+        }
+        Text(text = timeText, style = MaterialTheme.typography.displayMedium)
     }
 }
 

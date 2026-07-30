@@ -2,18 +2,23 @@ package com.tempo.app.data.repository
 
 import com.tempo.app.domain.model.DayAggregate
 import com.tempo.app.domain.model.Habit
+import com.tempo.app.domain.model.HabitCompletionStatus
 import com.tempo.app.domain.model.HabitDetail
 import com.tempo.app.domain.model.HabitWithTodayStatus
 import com.tempo.app.domain.model.InsightsPeriod
 import com.tempo.app.domain.model.InsightsSummary
 import com.tempo.app.domain.model.Routine
 import kotlinx.coroutines.flow.Flow
+import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
 
 interface HabitRepository {
     fun observeActiveHabits(): Flow<List<Habit>>
     fun observeHabitsForDate(date: LocalDate): Flow<List<HabitWithTodayStatus>>
+    suspend fun getAllActiveHabits(): List<Habit>
+    suspend fun getCompletionStatus(habitId: Long, date: LocalDate): HabitCompletionStatus?
+    suspend fun getRecentDoneTimestamps(habitId: Long, limit: Int = 10): List<Instant>
     suspend fun getHabit(id: Long): Habit?
     suspend fun addHabit(habit: Habit): Long
     suspend fun updateHabit(habit: Habit)

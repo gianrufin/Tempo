@@ -117,4 +117,8 @@ class SettingsViewModel @Inject constructor(
             }
         }
     }
+
+    fun onAlarmSoundSelected(uri: Uri?, label: String) {
+        viewModelScope.launch { preferencesRepository.setAlarmSound(uri?.toString(), label) }
+    }
 }

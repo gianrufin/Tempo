@@ -38,6 +38,17 @@ class TaskRepositoryImpl @Inject constructor(
             }
         }
 
+    override suspend fun getAllActiveTasks(): List<Task> = taskDao.getAllActive().map { it.toDomain() }
+
+    override suspend fun isDoneForDate(taskId: Long, date: LocalDate): Boolean {
+        val entity = taskDao.getById(taskId) ?: return false
+        return if (entity.isRecurring) {
+            completionDao.getForTaskAndDate(taskId, date) != null
+        } else {
+            entity.completedAt != null
+        }
+    }
+
     override suspend fun getTask(id: Long): Task? = taskDao.getById(id)?.toDomain()
 
     override suspend fun addTask(task: Task): Long = taskDao.insert(task.toEntity())

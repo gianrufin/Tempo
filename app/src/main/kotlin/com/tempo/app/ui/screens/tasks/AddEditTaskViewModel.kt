@@ -3,6 +3,7 @@ package com.tempo.app.ui.screens.tasks
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.tempo.app.alarm.AlarmRescheduler
 import com.tempo.app.data.repository.TaskRepository
 import com.tempo.app.domain.model.RecurrenceRule
 import com.tempo.app.domain.model.Task
@@ -38,6 +39,7 @@ data class AddEditTaskUiState(
 @HiltViewModel
 class AddEditTaskViewModel @Inject constructor(
     private val repository: TaskRepository,
+    private val alarmRescheduler: AlarmRescheduler,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -84,10 +86,12 @@ class AddEditTaskViewModel @Inject constructor(
                 priority = state.priority,
                 createdAt = LocalDate.now(),
             )
+            val savedId: Long
             if (state.taskId == null) {
-                repository.addTask(task)
+                savedId = repository.addTask(task)
             } else {
                 val existing = repository.getTask(state.taskId) ?: return@launch
+                savedId = state.taskId
                 repository.updateTask(existing.copy(
                     title = task.title,
                     notes = task.notes,
@@ -98,6 +102,7 @@ class AddEditTaskViewModel @Inject constructor(
                     priority = task.priority,
                 ))
             }
+            alarmRescheduler.rescheduleTask(savedId)
             _uiState.value = _uiState.value.copy(isSaved = true)
         }
     }
@@ -106,6 +111,7 @@ class AddEditTaskViewModel @Inject constructor(
         val id = _uiState.value.taskId ?: return
         viewModelScope.launch {
             repository.archiveTask(id)
+            alarmRescheduler.rescheduleTask(id)
             _uiState.value = _uiState.value.copy(isSaved = true)
         }
     }

@@ -21,6 +21,8 @@ private object PreferenceKeys {
     val BACKUP_HOUR = intPreferencesKey("backup_hour")
     val BACKUP_MINUTE = intPreferencesKey("backup_minute")
     val LAST_BACKUP_AT_MILLIS = longPreferencesKey("last_backup_at_millis")
+    val ALARM_SOUND_URI = stringPreferencesKey("alarm_sound_uri")
+    val ALARM_SOUND_LABEL = stringPreferencesKey("alarm_sound_label")
 }
 
 class PreferencesRepository @Inject constructor(
@@ -37,6 +39,8 @@ class PreferencesRepository @Inject constructor(
             backupHour = prefs[PreferenceKeys.BACKUP_HOUR] ?: 21,
             backupMinute = prefs[PreferenceKeys.BACKUP_MINUTE] ?: 0,
             lastBackupAtMillis = prefs[PreferenceKeys.LAST_BACKUP_AT_MILLIS],
+            alarmSoundUri = prefs[PreferenceKeys.ALARM_SOUND_URI],
+            alarmSoundLabel = prefs[PreferenceKeys.ALARM_SOUND_LABEL] ?: "Default alarm sound",
         )
     }
 
@@ -71,5 +75,12 @@ class PreferencesRepository @Inject constructor(
 
     suspend fun setLastBackupAtMillis(millis: Long) {
         dataStore.edit { it[PreferenceKeys.LAST_BACKUP_AT_MILLIS] = millis }
+    }
+
+    suspend fun setAlarmSound(uri: String?, label: String) {
+        dataStore.edit {
+            if (uri == null) it.remove(PreferenceKeys.ALARM_SOUND_URI) else it[PreferenceKeys.ALARM_SOUND_URI] = uri
+            it[PreferenceKeys.ALARM_SOUND_LABEL] = label
+        }
     }
 }

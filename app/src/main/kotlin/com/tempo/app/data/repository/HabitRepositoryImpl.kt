@@ -106,6 +106,14 @@ class HabitRepositoryImpl @Inject constructor(
         return doneBeforeDate < rule.times
     }
 
+    override suspend fun getAllActiveHabits(): List<Habit> = habitDao.getAllActive().map { it.toDomain() }
+
+    override suspend fun getCompletionStatus(habitId: Long, date: LocalDate): HabitCompletionStatus? =
+        completionDao.getForHabitAndDate(habitId, date)?.status
+
+    override suspend fun getRecentDoneTimestamps(habitId: Long, limit: Int): List<Instant> =
+        completionDao.getRecentDone(habitId, limit).mapNotNull { it.completedAt }
+
     override suspend fun getHabit(id: Long): Habit? = habitDao.getById(id)?.toDomain()
 
     override suspend fun addHabit(habit: Habit): Long = habitDao.insert(habit.toEntity())

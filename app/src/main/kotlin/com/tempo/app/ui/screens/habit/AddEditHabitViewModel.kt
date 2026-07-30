@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.tempo.app.alarm.AlarmRescheduler
 import com.tempo.app.data.repository.HabitRepository
 import com.tempo.app.domain.model.Habit
 import com.tempo.app.domain.model.RecurrenceRule
@@ -49,6 +50,7 @@ data class AddEditHabitUiState(
 @HiltViewModel
 class AddEditHabitViewModel @Inject constructor(
     private val repository: HabitRepository,
+    private val alarmRescheduler: AlarmRescheduler,
     @ApplicationContext private val appContext: Context,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
@@ -93,8 +95,9 @@ class AddEditHabitViewModel @Inject constructor(
         if (!state.isValid) return
         viewModelScope.launch {
             val recurrenceRule = state.toRecurrenceRule()
+            val savedId: Long
             if (state.habitId == null) {
-                repository.addHabit(
+                savedId = repository.addHabit(
                     Habit(
                         name = state.name.trim(),
                         icon = state.icon,
@@ -110,6 +113,7 @@ class AddEditHabitViewModel @Inject constructor(
                 )
             } else {
                 val existing = repository.getHabit(state.habitId) ?: return@launch
+                savedId = state.habitId
                 repository.updateHabit(
                     existing.copy(
                         name = state.name.trim(),
@@ -124,6 +128,7 @@ class AddEditHabitViewModel @Inject constructor(
                 )
             }
             WidgetRefresher.refresh(appContext)
+            alarmRescheduler.rescheduleHabit(savedId)
             _uiState.value = _uiState.value.copy(isSaved = true)
         }
     }
@@ -133,6 +138,7 @@ class AddEditHabitViewModel @Inject constructor(
         viewModelScope.launch {
             repository.archiveHabit(id)
             WidgetRefresher.refresh(appContext)
+            alarmRescheduler.rescheduleHabit(id)
             _uiState.value = _uiState.value.copy(isSaved = true)
         }
     }

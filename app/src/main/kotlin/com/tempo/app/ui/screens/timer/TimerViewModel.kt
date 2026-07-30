@@ -1,13 +1,18 @@
 package com.tempo.app.ui.screens.timer
 
+import android.content.Context
+import android.content.Intent
+import android.os.SystemClock
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.tempo.app.alarm.AlarmRequestCodes
+import com.tempo.app.alarm.ExactAlarmScheduler
+import com.tempo.app.alarm.TimerAlarmReceiver
 import com.tempo.app.data.repository.HabitRepository
 import com.tempo.app.domain.model.Habit
 import com.tempo.app.widget.WidgetRefresher
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import android.content.Context
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,15 +37,30 @@ data class TimerUiState(
     val pomodoroBreakMinutes: Int = 5,
     val pomodoroRemainingSeconds: Int = 25 * 60,
     val pomodoroIsBreak: Boolean = false,
-    val stopwatchElapsedSeconds: Int = 0,
+    val stopwatchElapsedMillis: Long = 0L,
     val countdownSetMinutes: Int = 10,
     val countdownRemainingSeconds: Int = 10 * 60,
     val linkedHabitId: Long? = null,
-)
+) {
+    /** Fraction of the current segment already elapsed, for the ring animation — 1f at the start. */
+    val remainingFraction: Float
+        get() = when (mode) {
+            TimerMode.POMODORO -> {
+                val total = (if (pomodoroIsBreak) pomodoroBreakMinutes else pomodoroWorkMinutes) * 60
+                if (total == 0) 0f else pomodoroRemainingSeconds / total.toFloat()
+            }
+            TimerMode.COUNTDOWN -> {
+                val total = countdownSetMinutes * 60
+                if (total == 0) 0f else countdownRemainingSeconds / total.toFloat()
+            }
+            TimerMode.STOPWATCH -> 0f
+        }
+}
 
 @HiltViewModel
 class TimerViewModel @Inject constructor(
     private val repository: HabitRepository,
+    private val alarmScheduler: ExactAlarmScheduler,
     @ApplicationContext private val appContext: Context,
 ) : ViewModel() {
 
@@ -51,6 +71,8 @@ class TimerViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private var tickerJob: Job? = null
+    private var stopwatchStartUptimeMillis: Long = 0L
+    private var stopwatchBaseElapsedMillis: Long = 0L
 
     fun onSelectMode(mode: TimerMode) {
         pause()
@@ -63,10 +85,20 @@ class TimerViewModel @Inject constructor(
 
     fun start() {
         if (_uiState.value.isRunning) return
-        _uiState.value = _uiState.value.copy(isRunning = true)
+        val state = _uiState.value
+        _uiState.value = state.copy(isRunning = true)
+
+        if (state.mode == TimerMode.STOPWATCH) {
+            stopwatchBaseElapsedMillis = state.stopwatchElapsedMillis
+            stopwatchStartUptimeMillis = SystemClock.uptimeMillis()
+        } else {
+            scheduleCurrentSegmentAlarm()
+        }
+
         tickerJob = viewModelScope.launch {
+            val tickMillis = if (_uiState.value.mode == TimerMode.STOPWATCH) 100L else 1000L
             while (true) {
-                delay(1000)
+                delay(tickMillis)
                 tick()
             }
         }
@@ -78,6 +110,7 @@ class TimerViewModel @Inject constructor(
         if (_uiState.value.isRunning) {
             _uiState.value = _uiState.value.copy(isRunning = false)
         }
+        cancelTimerAlarm()
     }
 
     fun reset() {
@@ -88,7 +121,7 @@ class TimerViewModel @Inject constructor(
                 pomodoroRemainingSeconds = state.pomodoroWorkMinutes * 60,
                 pomodoroIsBreak = false,
             )
-            TimerMode.STOPWATCH -> state.copy(stopwatchElapsedSeconds = 0)
+            TimerMode.STOPWATCH -> state.copy(stopwatchElapsedMillis = 0L)
             TimerMode.COUNTDOWN -> state.copy(countdownRemainingSeconds = state.countdownSetMinutes * 60)
         }
     }
@@ -107,15 +140,20 @@ class TimerViewModel @Inject constructor(
                 if (state.pomodoroRemainingSeconds <= 1) {
                     val nowBreak = !state.pomodoroIsBreak
                     if (nowBreak) onPomodoroWorkSessionCompleted(state.linkedHabitId)
-                    state.copy(
+                    val next = state.copy(
                         pomodoroIsBreak = nowBreak,
                         pomodoroRemainingSeconds = if (nowBreak) state.pomodoroBreakMinutes * 60 else state.pomodoroWorkMinutes * 60,
                     )
+                    scheduleCurrentSegmentAlarm(next)
+                    next
                 } else {
                     state.copy(pomodoroRemainingSeconds = state.pomodoroRemainingSeconds - 1)
                 }
             }
-            TimerMode.STOPWATCH -> state.copy(stopwatchElapsedSeconds = state.stopwatchElapsedSeconds + 1)
+            TimerMode.STOPWATCH -> {
+                val elapsed = stopwatchBaseElapsedMillis + (SystemClock.uptimeMillis() - stopwatchStartUptimeMillis)
+                state.copy(stopwatchElapsedMillis = elapsed)
+            }
             TimerMode.COUNTDOWN -> {
                 if (state.countdownRemainingSeconds <= 1) {
                     tickerJob?.cancel()
@@ -135,6 +173,36 @@ class TimerViewModel @Inject constructor(
             repository.markDone(linkedHabitId, LocalDate.now())
             WidgetRefresher.refresh(appContext)
         }
+    }
+
+    /**
+     * Schedules an exact alarm for exactly when the current segment ends, so the alarm still
+     * fires — full-screen splash, sound, the works — even if the app gets backgrounded or killed.
+     */
+    private fun scheduleCurrentSegmentAlarm(state: TimerUiState = _uiState.value) {
+        val (remainingSeconds, label) = when (state.mode) {
+            TimerMode.POMODORO -> state.pomodoroRemainingSeconds to
+                (if (state.pomodoroIsBreak) "Break's over!" else "Focus session done!")
+            TimerMode.COUNTDOWN -> state.countdownRemainingSeconds to "Time's up!"
+            TimerMode.STOPWATCH -> return
+        }
+        val triggerAtMillis = System.currentTimeMillis() + remainingSeconds * 1000L
+        val intent = Intent(appContext, TimerAlarmReceiver::class.java).apply {
+            action = TimerAlarmReceiver.ACTION_TIMER_ALARM
+            putExtra(TimerAlarmReceiver.EXTRA_MODE, state.mode.name)
+            putExtra(TimerAlarmReceiver.EXTRA_LABEL, label)
+            if (state.mode == TimerMode.POMODORO && !state.pomodoroIsBreak) {
+                state.linkedHabitId?.let { putExtra(TimerAlarmReceiver.EXTRA_LINKED_HABIT_ID, it) }
+            }
+        }
+        alarmScheduler.scheduleAlarmClock(AlarmRequestCodes.TIMER, triggerAtMillis, intent)
+    }
+
+    private fun cancelTimerAlarm() {
+        val intent = Intent(appContext, TimerAlarmReceiver::class.java).apply {
+            action = TimerAlarmReceiver.ACTION_TIMER_ALARM
+        }
+        alarmScheduler.cancel(AlarmRequestCodes.TIMER, intent)
     }
 
     override fun onCleared() {

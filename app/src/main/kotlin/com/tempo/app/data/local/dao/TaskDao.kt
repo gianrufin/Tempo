@@ -13,6 +13,9 @@ interface TaskDao {
     @Query("SELECT * FROM tasks WHERE archived = 0 ORDER BY createdAt ASC")
     fun observeActive(): Flow<List<TaskEntity>>
 
+    @Query("SELECT * FROM tasks WHERE archived = 0")
+    suspend fun getAllActive(): List<TaskEntity>
+
     @Query("SELECT * FROM tasks WHERE id = :id")
     suspend fun getById(id: Long): TaskEntity?
 

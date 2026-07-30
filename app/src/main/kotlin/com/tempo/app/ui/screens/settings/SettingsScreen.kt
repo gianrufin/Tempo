@@ -1,6 +1,8 @@
 package com.tempo.app.ui.screens.settings
 
 import android.content.Intent
+import android.media.RingtoneManager
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -17,7 +19,10 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.SystemUpdate
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -48,6 +53,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.tempo.app.BuildConfig
+import com.tempo.app.alarm.AlarmSoundPlayer
 import com.tempo.app.data.preferences.UserPreferences
 import com.tempo.app.data.update.UpdateChecker
 import com.tempo.app.domain.model.ThemeMode
@@ -133,6 +139,10 @@ fun SettingsScreen(modifier: Modifier = Modifier, viewModel: SettingsViewModel =
             }
         }
 
+        SettingsSection(title = "Alarms") {
+            AlarmSoundSection(viewModel = viewModel, prefs = prefs)
+        }
+
         SettingsSection(title = "Backup") {
             BackupSection(viewModel = viewModel, prefs = prefs)
         }
@@ -204,6 +214,63 @@ private fun SettingsSection(title: String, content: @Composable () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(text = title, style = MaterialTheme.typography.titleMedium)
         content()
+    }
+}
+
+@Composable
+private fun AlarmSoundSection(viewModel: SettingsViewModel, prefs: UserPreferences) {
+    var isTestPlaying by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+
+    val soundPicker = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val uri = result.data?.getParcelableExtra<Uri>(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
+        val label = uri?.let { runCatching { RingtoneManager.getRingtone(context, it)?.getTitle(context) }.getOrNull() }
+            ?: "Default alarm sound"
+        viewModel.onAlarmSoundSelected(uri, label)
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(
+            "Used for habit/task reminders and for the Pomodoro/countdown timer alarm.",
+            style = MaterialTheme.typography.bodySmall,
+        )
+        OutlinedButton(
+            onClick = {
+                val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
+                    putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_ALARM)
+                    putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
+                    putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
+                    putExtra(
+                        RingtoneManager.EXTRA_RINGTONE_EXISTING_URI,
+                        prefs.alarmSoundUri?.let { Uri.parse(it) }
+                            ?: RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_ALARM),
+                    )
+                }
+                soundPicker.launch(intent)
+            },
+            shape = TempoExtraShapes.pill,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Icon(Icons.Filled.MusicNote, contentDescription = null)
+            Text("  ${prefs.alarmSoundLabel}")
+        }
+
+        Button(
+            onClick = {
+                if (isTestPlaying) {
+                    AlarmSoundPlayer.stop()
+                    isTestPlaying = false
+                } else {
+                    AlarmSoundPlayer.start(context, prefs.alarmSoundUri)
+                    isTestPlaying = true
+                }
+            },
+            shape = TempoExtraShapes.pill,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Icon(if (isTestPlaying) Icons.Filled.Stop else Icons.Filled.VolumeUp, contentDescription = null)
+            Text(if (isTestPlaying) "  Stop test" else "  Test alarm sound")
+        }
     }
 }
 

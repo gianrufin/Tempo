@@ -11,4 +11,6 @@ data class UserPreferences(
     val backupHour: Int = 21,
     val backupMinute: Int = 0,
     val lastBackupAtMillis: Long? = null,
+    val alarmSoundUri: String? = null,
+    val alarmSoundLabel: String = "Default alarm sound",
 )

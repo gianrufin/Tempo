@@ -8,6 +8,8 @@ import java.time.LocalDate
 interface TaskRepository {
     /** Recurring tasks scheduled for [date], plus single tasks not yet completed and due on or before [date]. */
     fun observeTasksForDate(date: LocalDate): Flow<List<TaskWithTodayStatus>>
+    suspend fun getAllActiveTasks(): List<Task>
+    suspend fun isDoneForDate(taskId: Long, date: LocalDate): Boolean
     suspend fun getTask(id: Long): Task?
     suspend fun addTask(task: Task): Long
     suspend fun updateTask(task: Task)

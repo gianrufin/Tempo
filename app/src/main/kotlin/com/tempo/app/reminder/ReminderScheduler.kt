@@ -15,13 +15,10 @@ import javax.inject.Inject
 class ReminderScheduler @Inject constructor(
     @ApplicationContext private val context: Context,
 ) {
-    fun schedule() {
-        val request = PeriodicWorkRequestBuilder<ReminderCheckWorker>(15, TimeUnit.MINUTES).build()
-        WorkManager.getInstance(context).enqueueUniquePeriodicWork(
-            UNIQUE_WORK_NAME,
-            ExistingPeriodicWorkPolicy.KEEP,
-            request,
-        )
+    /** Cleans up the old imprecise 15-minute polling worker from earlier app versions — exact
+     * per-habit/task alarms (see [com.tempo.app.alarm.AlarmRescheduler]) replaced it. */
+    fun cancelLegacyPollingReminders() {
+        WorkManager.getInstance(context).cancelUniqueWork(LEGACY_UNIQUE_WORK_NAME)
     }
 
     fun scheduleStreakRiskCheck() {
@@ -63,7 +60,7 @@ class ReminderScheduler @Inject constructor(
     }
 
     companion object {
-        private const val UNIQUE_WORK_NAME = "reminder_check"
+        private const val LEGACY_UNIQUE_WORK_NAME = "reminder_check"
         private const val STREAK_RISK_WORK_NAME = "streak_risk_check"
         private const val WEEKLY_RECAP_WORK_NAME = "weekly_recap"
         private const val STREAK_RISK_HOUR = 20
