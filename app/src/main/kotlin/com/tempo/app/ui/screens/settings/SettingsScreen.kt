@@ -1,10 +1,14 @@
 package com.tempo.app.ui.screens.settings
 
+import android.Manifest
 import android.content.Intent
 import android.media.RingtoneManager
 import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -20,6 +24,8 @@ import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.NotificationsActive
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.VolumeUp
@@ -139,6 +145,10 @@ fun SettingsScreen(modifier: Modifier = Modifier, viewModel: SettingsViewModel =
             }
         }
 
+        SettingsSection(title = "Notifications") {
+            NotificationTestSection(viewModel = viewModel)
+        }
+
         SettingsSection(title = "Alarms") {
             AlarmSoundSection(viewModel = viewModel, prefs = prefs)
         }
@@ -214,6 +224,87 @@ private fun SettingsSection(title: String, content: @Composable () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(text = title, style = MaterialTheme.typography.titleMedium)
         content()
+    }
+}
+
+@Composable
+private fun NotificationTestSection(viewModel: SettingsViewModel) {
+    val context = LocalContext.current
+    val testState by viewModel.notificationTestState.collectAsState()
+    var permissionRefreshTick by remember { mutableStateOf(0) }
+    val notificationsEnabled = remember(permissionRefreshTick) { viewModel.areNotificationsEnabled() }
+
+    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+        permissionRefreshTick++
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                if (notificationsEnabled) "Notifications are enabled" else "Notifications are blocked",
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            Icon(
+                Icons.Filled.NotificationsActive,
+                contentDescription = null,
+                tint = if (notificationsEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+            )
+        }
+
+        if (!notificationsEnabled) {
+            OutlinedButton(
+                onClick = {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+                        android.content.pm.PackageManager.PERMISSION_GRANTED
+                    ) {
+                        permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    } else {
+                        // Permission already denied once (or notifications disabled at the app
+                        // level below API 33) — Android won't show the dialog again, so send the
+                        // user straight to the system screen where they can flip it back on.
+                        context.startActivity(
+                            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                                .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName),
+                        )
+                    }
+                },
+                shape = TempoExtraShapes.pill,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Enable notifications")
+            }
+        }
+
+        OutlinedButton(
+            onClick = { viewModel.sendTestNotificationNow() },
+            shape = TempoExtraShapes.pill,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Icon(Icons.Filled.Send, contentDescription = null)
+            Text("  Send test notification now")
+        }
+        testState.testNotificationMessage?.let {
+            Text(it, style = MaterialTheme.typography.bodySmall)
+        }
+
+        OutlinedButton(
+            onClick = { viewModel.scheduleTestAlarm() },
+            shape = TempoExtraShapes.pill,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Test alarm in 10 seconds")
+        }
+        if (testState.testAlarmScheduled) {
+            Text(
+                "Scheduled — lock or leave the app now; a notification should appear in ~10s.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
     }
 }
 

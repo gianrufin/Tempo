@@ -1,8 +1,13 @@
 package com.tempo.app.ui.screens.settings
 
+import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.tempo.app.alarm.AlarmRequestCodes
+import com.tempo.app.alarm.ExactAlarmScheduler
+import com.tempo.app.alarm.ReminderAlarmReceiver
 import com.tempo.app.data.backup.BackupManager
 import com.tempo.app.data.backup.BackupScheduler
 import com.tempo.app.data.preferences.PreferencesRepository
@@ -11,7 +16,9 @@ import com.tempo.app.data.repository.HabitRepository
 import com.tempo.app.data.update.UpdateCheckResult
 import com.tempo.app.data.update.UpdateChecker
 import com.tempo.app.domain.model.ThemeMode
+import com.tempo.app.reminder.NotificationHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -36,6 +43,11 @@ data class RestoreUiState(
     val errorMessage: String? = null,
 )
 
+data class NotificationTestUiState(
+    val testNotificationMessage: String? = null,
+    val testAlarmScheduled: Boolean = false,
+)
+
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val preferencesRepository: PreferencesRepository,
@@ -43,6 +55,9 @@ class SettingsViewModel @Inject constructor(
     private val updateChecker: UpdateChecker,
     private val backupManager: BackupManager,
     private val backupScheduler: BackupScheduler,
+    private val notificationHelper: NotificationHelper,
+    private val exactAlarmScheduler: ExactAlarmScheduler,
+    @ApplicationContext private val appContext: Context,
 ) : ViewModel() {
 
     val preferences: StateFlow<UserPreferences> = preferencesRepository.userPreferences
@@ -56,6 +71,34 @@ class SettingsViewModel @Inject constructor(
 
     private val _restoreState = MutableStateFlow(RestoreUiState())
     val restoreState = _restoreState.asStateFlow()
+
+    private val _notificationTestState = MutableStateFlow(NotificationTestUiState())
+    val notificationTestState = _notificationTestState.asStateFlow()
+
+    fun areNotificationsEnabled(): Boolean = notificationHelper.areNotificationsEnabled()
+
+    fun sendTestNotificationNow() {
+        val posted = notificationHelper.showTestNotificationNow()
+        _notificationTestState.value = NotificationTestUiState(
+            testNotificationMessage = if (posted) {
+                "Sent — check your notification shade now."
+            } else {
+                "Blocked: notification permission isn't granted. Use the button above to fix that."
+            },
+        )
+    }
+
+    fun scheduleTestAlarm() {
+        val intent = Intent(appContext, ReminderAlarmReceiver::class.java).apply {
+            action = ReminderAlarmReceiver.ACTION_TEST_ALARM
+        }
+        exactAlarmScheduler.scheduleAlarmClock(
+            AlarmRequestCodes.TEST,
+            System.currentTimeMillis() + 10_000L,
+            intent,
+        )
+        _notificationTestState.value = NotificationTestUiState(testAlarmScheduled = true)
+    }
 
     fun onDisplayNameChange(name: String) {
         viewModelScope.launch { preferencesRepository.setDisplayName(name) }

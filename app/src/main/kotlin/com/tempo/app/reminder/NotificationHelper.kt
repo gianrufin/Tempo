@@ -134,13 +134,45 @@ class NotificationHelper @Inject constructor(
         NotificationManagerCompat.from(context).cancel(notificationId)
     }
 
-    private fun notifyIfPermitted(notificationId: Int, notification: Notification) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+    /** Whether the system will actually display Tempo's notifications right now — covers both
+     * the runtime POST_NOTIFICATIONS permission (API 33+) and the user disabling notifications
+     * for the app entirely (any API level), unlike checking the permission alone. */
+    fun areNotificationsEnabled(): Boolean = NotificationManagerCompat.from(context).areNotificationsEnabled()
+
+    /** Settings > Notifications > "Send test notification now" — an immediate, no-alarm-involved
+     * check that permission + channel + display all work. Returns whether it was actually posted. */
+    fun showTestNotificationNow(): Boolean {
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle("Test notification")
+            .setContentText("If you can see this, Tempo's notifications are working.")
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .build()
+        return notifyIfPermitted(TEST_NOTIFICATION_ID, notification)
+    }
+
+    /** What [com.tempo.app.alarm.ReminderAlarmReceiver.ACTION_TEST_ALARM] shows once the 10-second
+     * test alarm actually fires — proves the full AlarmManager -> BroadcastReceiver pipeline. */
+    fun showTestAlarmFiredNotification() {
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle("Test alarm fired ✅")
+            .setContentText("The scheduled alarm reached Tempo and posted this notification.")
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .build()
+        notifyIfPermitted(TEST_ALARM_NOTIFICATION_ID, notification)
+    }
+
+    private fun notifyIfPermitted(notificationId: Int, notification: Notification): Boolean {
+        val permitted = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
             context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) ==
             android.content.pm.PackageManager.PERMISSION_GRANTED
-        ) {
+        if (permitted) {
             NotificationManagerCompat.from(context).notify(notificationId, notification)
         }
+        return permitted
     }
 
     private fun actionIntent(action: String, habitId: Long, notificationId: Int): PendingIntent {
@@ -177,5 +209,7 @@ class NotificationHelper @Inject constructor(
         private const val STREAK_RISK_NOTIFICATION_ID_OFFSET = 1_000_000
         private const val WEEKLY_RECAP_NOTIFICATION_ID = 2_000_000
         private const val TASK_REMINDER_NOTIFICATION_ID_OFFSET = 3_000_000
+        private const val TEST_NOTIFICATION_ID = 5_000_000
+        private const val TEST_ALARM_NOTIFICATION_ID = 5_000_001
     }
 }

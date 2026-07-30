@@ -31,6 +31,7 @@ class ReminderAlarmReceiver : BroadcastReceiver() {
                 when (intent.action) {
                     ACTION_HABIT_REMINDER -> handleHabitReminder(intent)
                     ACTION_TASK_REMINDER -> handleTaskReminder(intent)
+                    ACTION_TEST_ALARM -> notificationHelper.showTestAlarmFiredNotification()
                 }
             } finally {
                 pendingResult.finish()
@@ -67,6 +68,10 @@ class ReminderAlarmReceiver : BroadcastReceiver() {
     companion object {
         const val ACTION_HABIT_REMINDER = "com.tempo.app.action.HABIT_REMINDER"
         const val ACTION_TASK_REMINDER = "com.tempo.app.action.TASK_REMINDER"
+        /** Fired by Settings > Notifications > "Test alarm in 10 seconds" — proves the whole
+         * AlarmManager -> BroadcastReceiver -> notification pipeline works end to end, not just
+         * that the app can post a notification while it's in the foreground. */
+        const val ACTION_TEST_ALARM = "com.tempo.app.action.TEST_ALARM"
         const val EXTRA_HABIT_ID = "extra_habit_id"
         const val EXTRA_TASK_ID = "extra_task_id"
     }
