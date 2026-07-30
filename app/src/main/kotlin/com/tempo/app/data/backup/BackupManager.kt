@@ -22,7 +22,15 @@ class BackupManager @Inject constructor(
 ) {
     suspend fun backupTo(treeUri: Uri): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
-            database.query("PRAGMA wal_checkpoint(FULL)", null).close()
+            // Room uses WAL journal mode, so recently written rows (on a lightly-used app, this
+            // can mean *all* of them, including the very tables themselves) live in the
+            // `tempo.db-wal` sidecar file until a checkpoint merges them into the main file that
+            // gets copied below. Android's SQLite cursor is lazy — it doesn't actually run the
+            // query until something reads from it — so `.close()` alone without ever consuming
+            // the cursor may never execute the checkpoint at all. TRUNCATE (rather than FULL)
+            // additionally empties the WAL file afterward, so there's no ambiguity about whether
+            // the merge actually happened.
+            database.query("PRAGMA wal_checkpoint(TRUNCATE)", null).use { it.moveToFirst() }
 
             val treeDoc = DocumentFile.fromTreeUri(context, treeUri)
                 ?: error("Can't access the selected folder")
