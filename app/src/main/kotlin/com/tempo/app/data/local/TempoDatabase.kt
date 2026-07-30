@@ -6,9 +6,11 @@ import androidx.room.TypeConverters
 import com.tempo.app.data.local.dao.HabitCompletionDao
 import com.tempo.app.data.local.dao.HabitDao
 import com.tempo.app.data.local.dao.RoutineDao
+import com.tempo.app.data.local.dao.GoalDao
 import com.tempo.app.data.local.dao.MoodEntryDao
 import com.tempo.app.data.local.dao.TaskCompletionDao
 import com.tempo.app.data.local.dao.TaskDao
+import com.tempo.app.data.local.entity.GoalEntity
 import com.tempo.app.data.local.entity.HabitCompletionEntity
 import com.tempo.app.data.local.entity.HabitEntity
 import com.tempo.app.data.local.entity.MoodEntryEntity
@@ -24,8 +26,9 @@ import com.tempo.app.data.local.entity.TaskEntity
         TaskEntity::class,
         TaskCompletionEntity::class,
         MoodEntryEntity::class,
+        GoalEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = false,
 )
 @TypeConverters(Converters::class)
@@ -36,6 +39,7 @@ abstract class TempoDatabase : RoomDatabase() {
     abstract fun taskDao(): TaskDao
     abstract fun taskCompletionDao(): TaskCompletionDao
     abstract fun moodEntryDao(): MoodEntryDao
+    abstract fun goalDao(): GoalDao
 
     companion object {
         const val DATABASE_NAME = "tempo.db"

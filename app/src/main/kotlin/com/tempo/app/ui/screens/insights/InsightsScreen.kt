@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -40,7 +41,11 @@ import com.tempo.app.ui.theme.TempoExtraShapes
 import kotlinx.coroutines.launch
 
 @Composable
-fun InsightsScreen(modifier: Modifier = Modifier, viewModel: InsightsViewModel = hiltViewModel()) {
+fun InsightsScreen(
+    modifier: Modifier = Modifier,
+    onOpenGoals: () -> Unit = {},
+    viewModel: InsightsViewModel = hiltViewModel(),
+) {
     val period by viewModel.period.collectAsState()
     val summary by viewModel.summary.collectAsState()
     val context = LocalContext.current
@@ -83,6 +88,15 @@ fun InsightsScreen(modifier: Modifier = Modifier, viewModel: InsightsViewModel =
                     }
                 }
             }
+        }
+
+        OutlinedButton(
+            onClick = onOpenGoals,
+            shape = TempoExtraShapes.pill,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Icon(Icons.Filled.Flag, contentDescription = null)
+            Text("  Goals")
         }
 
         currentSummary?.let { summaryForShare ->

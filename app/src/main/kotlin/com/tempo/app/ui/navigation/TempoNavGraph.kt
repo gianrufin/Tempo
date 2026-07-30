@@ -18,6 +18,8 @@ import androidx.navigation.navArgument
 import com.tempo.app.ui.components.FloatingBottomNav
 import com.tempo.app.ui.components.FloatingNavItem
 import com.tempo.app.ui.screens.calendar.CalendarScreen
+import com.tempo.app.ui.screens.goals.AddEditGoalScreen
+import com.tempo.app.ui.screens.goals.GoalsScreen
 import com.tempo.app.ui.screens.habit.AddEditHabitScreen
 import com.tempo.app.ui.screens.habit.HabitDetailScreen
 import com.tempo.app.ui.screens.insights.InsightsScreen
@@ -36,6 +38,8 @@ private const val ROUTE_HABIT_DETAIL = "habit/detail/{$HABIT_ID_ARG}"
 private const val ROUTE_ADD_EDIT_ROUTINE = "routine/edit/{$ROUTINE_ID_ARG}"
 private const val ROUTE_ADD_EDIT_TASK = "task/edit/{$TASK_ID_ARG}"
 private const val ROUTE_SETTINGS = "settings"
+private const val ROUTE_GOALS = "goals"
+private const val ROUTE_ADD_GOAL = "goal/new"
 
 private fun editHabitRoute(habitId: Long) = "habit/edit/$habitId"
 private fun addHabitRoute() = "habit/edit/0"
@@ -79,9 +83,20 @@ fun TempoApp(navController: NavHostController = rememberNavController()) {
                     onOpenTask = { taskId -> navController.navigate(editTaskRoute(taskId)) },
                 )
             }
-            composable(TempoDestination.Insights.route) { InsightsScreen() }
+            composable(TempoDestination.Insights.route) {
+                InsightsScreen(onOpenGoals = { navController.navigate(ROUTE_GOALS) })
+            }
             composable(TempoDestination.Timer.route) { TimerScreen() }
             composable(ROUTE_SETTINGS) { SettingsScreen() }
+            composable(ROUTE_GOALS) {
+                GoalsScreen(
+                    onBack = { navController.popBackStack() },
+                    onAddGoal = { navController.navigate(ROUTE_ADD_GOAL) },
+                )
+            }
+            composable(ROUTE_ADD_GOAL) {
+                AddEditGoalScreen(onDone = { navController.popBackStack() })
+            }
             composable(
                 route = ROUTE_ADD_EDIT_TASK,
                 arguments = listOf(navArgument(TASK_ID_ARG) { type = NavType.LongType; defaultValue = 0L }),

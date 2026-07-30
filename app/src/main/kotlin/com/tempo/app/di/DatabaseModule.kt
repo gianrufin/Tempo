@@ -3,6 +3,7 @@ package com.tempo.app.di
 import android.content.Context
 import androidx.room.Room
 import com.tempo.app.data.local.TempoDatabase
+import com.tempo.app.data.local.dao.GoalDao
 import com.tempo.app.data.local.dao.HabitCompletionDao
 import com.tempo.app.data.local.dao.HabitDao
 import com.tempo.app.data.local.dao.MoodEntryDao
@@ -45,4 +46,7 @@ object DatabaseModule {
 
     @Provides
     fun provideMoodEntryDao(database: TempoDatabase): MoodEntryDao = database.moodEntryDao()
+
+    @Provides
+    fun provideGoalDao(database: TempoDatabase): GoalDao = database.goalDao()
 }
