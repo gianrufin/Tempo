@@ -96,7 +96,7 @@ private fun PomodoroContent(state: TimerUiState, viewModel: TimerViewModel) {
         )
         RingTimeDisplay(
             timeText = formatMinSec(state.pomodoroRemainingSeconds),
-            progress = state.remainingFraction,
+            progress = state.progressFraction,
             isRunning = state.isRunning,
             ringColor = if (state.pomodoroIsBreak) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary,
         )
@@ -168,7 +168,7 @@ private fun CountdownContent(state: TimerUiState, viewModel: TimerViewModel) {
         }
         RingTimeDisplay(
             timeText = formatMinSec(state.countdownRemainingSeconds),
-            progress = state.remainingFraction,
+            progress = state.progressFraction,
             isRunning = state.isRunning,
             ringColor = MaterialTheme.colorScheme.primary,
         )

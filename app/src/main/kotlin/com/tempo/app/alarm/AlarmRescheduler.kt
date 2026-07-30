@@ -2,6 +2,7 @@ package com.tempo.app.alarm
 
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import com.tempo.app.data.repository.HabitRepository
 import com.tempo.app.data.repository.TaskRepository
 import com.tempo.app.domain.AdaptiveReminderCalculator
@@ -31,27 +32,38 @@ class AlarmRescheduler @Inject constructor(
 ) {
     private val lookaheadDays = 400
 
+    /**
+     * Every public entry point is best-effort: it runs inline with user actions (saving a habit/
+     * task, starting a timer) and a failure here (bad data, a repository hiccup, anything) must
+     * never surface as a crash of that action.
+     */
     suspend fun rescheduleAll() {
-        habitRepository.getAllActiveHabits().forEach { habit ->
-            cancelHabitSlots(habit.id)
-            scheduleHabit(habit)
-        }
-        taskRepository.getAllActiveTasks().forEach { task ->
-            cancelTaskAlarm(task.id)
-            scheduleTask(task)
-        }
+        runCatching {
+            habitRepository.getAllActiveHabits().forEach { habit ->
+                cancelHabitSlots(habit.id)
+                scheduleHabit(habit)
+            }
+            taskRepository.getAllActiveTasks().forEach { task ->
+                cancelTaskAlarm(task.id)
+                scheduleTask(task)
+            }
+        }.onFailure { Log.w(TAG, "rescheduleAll failed", it) }
     }
 
     suspend fun rescheduleHabit(habitId: Long) {
-        cancelHabitSlots(habitId)
-        val habit = habitRepository.getHabit(habitId)
-        if (habit != null && !habit.archived) scheduleHabit(habit)
+        runCatching {
+            cancelHabitSlots(habitId)
+            val habit = habitRepository.getHabit(habitId)
+            if (habit != null && !habit.archived) scheduleHabit(habit)
+        }.onFailure { Log.w(TAG, "rescheduleHabit($habitId) failed", it) }
     }
 
     suspend fun rescheduleTask(taskId: Long) {
-        cancelTaskAlarm(taskId)
-        val task = taskRepository.getTask(taskId)
-        if (task != null && !task.archived) scheduleTask(task)
+        runCatching {
+            cancelTaskAlarm(taskId)
+            val task = taskRepository.getTask(taskId)
+            if (task != null && !task.archived) scheduleTask(task)
+        }.onFailure { Log.w(TAG, "rescheduleTask($taskId) failed", it) }
     }
 
     private suspend fun scheduleHabit(habit: Habit) {
@@ -141,5 +153,9 @@ class AlarmRescheduler @Inject constructor(
             action = ReminderAlarmReceiver.ACTION_TASK_REMINDER
         }
         scheduler.cancel(AlarmRequestCodes.task(taskId), intent)
+    }
+
+    private companion object {
+        const val TAG = "AlarmRescheduler"
     }
 }

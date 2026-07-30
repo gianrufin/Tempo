@@ -42,16 +42,16 @@ data class TimerUiState(
     val countdownRemainingSeconds: Int = 10 * 60,
     val linkedHabitId: Long? = null,
 ) {
-    /** Fraction of the current segment already elapsed, for the ring animation — 1f at the start. */
-    val remainingFraction: Float
+    /** Fraction of the current segment already elapsed, for the ring animation — 0f at the start, 1f when it ends. */
+    val progressFraction: Float
         get() = when (mode) {
             TimerMode.POMODORO -> {
                 val total = (if (pomodoroIsBreak) pomodoroBreakMinutes else pomodoroWorkMinutes) * 60
-                if (total == 0) 0f else pomodoroRemainingSeconds / total.toFloat()
+                if (total == 0) 0f else 1f - (pomodoroRemainingSeconds / total.toFloat())
             }
             TimerMode.COUNTDOWN -> {
                 val total = countdownSetMinutes * 60
-                if (total == 0) 0f else countdownRemainingSeconds / total.toFloat()
+                if (total == 0) 0f else 1f - (countdownRemainingSeconds / total.toFloat())
             }
             TimerMode.STOPWATCH -> 0f
         }

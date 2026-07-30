@@ -4,6 +4,7 @@ import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import com.tempo.app.MainActivity
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -21,29 +22,43 @@ class ExactAlarmScheduler @Inject constructor(
     private val alarmManager: AlarmManager
         get() = context.getSystemService(AlarmManager::class.java)
 
+    /**
+     * Never lets a scheduling failure (a stricter OEM battery/alarm policy, a revoked "Alarms &
+     * reminders" toggle, anything else the OS decides to throw here) crash whatever user action
+     * triggered it — starting a timer or saving a habit/task should never fail because a
+     * best-effort background alarm couldn't be set.
+     */
     fun scheduleAlarmClock(requestCode: Int, triggerAtMillis: Long, operationIntent: Intent) {
-        val operation = PendingIntent.getBroadcast(
-            context,
-            requestCode,
-            operationIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
-        val showIntent = PendingIntent.getActivity(
-            context,
-            requestCode,
-            Intent(context, MainActivity::class.java),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
-        alarmManager.setAlarmClock(AlarmManager.AlarmClockInfo(triggerAtMillis, showIntent), operation)
+        runCatching {
+            val operation = PendingIntent.getBroadcast(
+                context,
+                requestCode,
+                operationIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
+            val showIntent = PendingIntent.getActivity(
+                context,
+                requestCode,
+                Intent(context, MainActivity::class.java),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
+            alarmManager.setAlarmClock(AlarmManager.AlarmClockInfo(triggerAtMillis, showIntent), operation)
+        }.onFailure { Log.w(TAG, "Failed to schedule alarm (requestCode=$requestCode)", it) }
     }
 
     fun cancel(requestCode: Int, operationIntent: Intent) {
-        val operation = PendingIntent.getBroadcast(
-            context,
-            requestCode,
-            operationIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
-        alarmManager.cancel(operation)
+        runCatching {
+            val operation = PendingIntent.getBroadcast(
+                context,
+                requestCode,
+                operationIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
+            alarmManager.cancel(operation)
+        }.onFailure { Log.w(TAG, "Failed to cancel alarm (requestCode=$requestCode)", it) }
+    }
+
+    private companion object {
+        const val TAG = "ExactAlarmScheduler"
     }
 }
