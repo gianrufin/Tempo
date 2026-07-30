@@ -7,13 +7,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
@@ -34,6 +32,7 @@ import com.tempo.app.domain.model.DayAggregate
 import com.tempo.app.domain.model.HabitCompletionStatus
 import com.tempo.app.domain.model.HabitWithTodayStatus
 import com.tempo.app.ui.theme.TempoExtraShapes
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.TextStyle
@@ -46,7 +45,13 @@ fun CalendarScreen(modifier: Modifier = Modifier, viewModel: CalendarViewModel =
     val selectedDate by viewModel.selectedDate.collectAsState()
     val selectedDayHabits by viewModel.selectedDayHabits.collectAsState()
 
-    Column(modifier = modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
         MonthHeader(month = month, onPrevious = viewModel::onPreviousMonth, onNext = viewModel::onNextMonth)
         MonthGrid(
             month = month,
@@ -87,11 +92,13 @@ private fun MonthGrid(
 ) {
     val leadingBlanks = month.atDay(1).dayOfWeek.value - 1
     val aggregateByDate = aggregate.associateBy { it.date }
+    val cells: List<LocalDate?> = List(leadingBlanks) { null } + (1..month.lengthOfMonth()).map { month.atDay(it) }
+    val weeks = cells.chunked(7)
 
     Column {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
             for (dayIndex in 1..7) {
-                val label = java.time.DayOfWeek.of(dayIndex).getDisplayName(TextStyle.NARROW, Locale.getDefault())
+                val label = DayOfWeek.of(dayIndex).getDisplayName(TextStyle.NARROW, Locale.getDefault())
                 Text(
                     text = label,
                     modifier = Modifier.weight(1f),
@@ -100,16 +107,27 @@ private fun MonthGrid(
                 )
             }
         }
-        LazyVerticalGrid(columns = GridCells.Fixed(7)) {
-            items(leadingBlanks) { Box(modifier = Modifier.aspectRatio(1f)) }
-            items(month.lengthOfMonth()) { dayIndex ->
-                val date = month.atDay(dayIndex + 1)
-                DayCell(
-                    date = date,
-                    dayAggregate = aggregateByDate[date],
-                    isSelected = date == selectedDate,
-                    onClick = { onSelectDate(date) },
-                )
+        weeks.forEach { week ->
+            Row(modifier = Modifier.fillMaxWidth()) {
+                week.forEach { date ->
+                    Box(modifier = Modifier.weight(1f)) {
+                        if (date == null) {
+                            Box(modifier = Modifier.aspectRatio(1f))
+                        } else {
+                            DayCell(
+                                date = date,
+                                dayAggregate = aggregateByDate[date],
+                                isSelected = date == selectedDate,
+                                onClick = { onSelectDate(date) },
+                            )
+                        }
+                    }
+                }
+                repeat(7 - week.size) {
+                    Box(modifier = Modifier.weight(1f)) {
+                        Box(modifier = Modifier.aspectRatio(1f))
+                    }
+                }
             }
         }
     }
@@ -167,8 +185,8 @@ private fun SelectedDaySection(date: LocalDate, habits: List<HabitWithTodayStatu
         if (habits.isEmpty()) {
             Text("Nothing scheduled.", style = MaterialTheme.typography.bodyMedium)
         } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(habits, key = { it.habit.id }) { item ->
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                habits.forEach { item ->
                     Surface(shape = TempoExtraShapes.card, color = MaterialTheme.colorScheme.surfaceVariant) {
                         Row(
                             modifier = Modifier

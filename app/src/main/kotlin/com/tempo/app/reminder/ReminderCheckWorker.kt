@@ -11,7 +11,6 @@ import com.tempo.app.domain.AdaptiveReminderCalculator
 import com.tempo.app.domain.model.HabitCompletionStatus
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
-import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalTime
 
@@ -52,7 +51,9 @@ class ReminderCheckWorker @AssistedInject constructor(
                     recentCompletionTimestamps = recentDone.mapNotNull { it.completedAt },
                     fallback = reminderTime,
                 )
-                val minutesSince = Duration.between(effectiveTime, nowTime).toMinutes()
+                // Wraps across midnight: a reminder at 23:50 checked at 00:05 should still fire.
+                val secondsSinceMidnightDiff = nowTime.toSecondOfDay() - effectiveTime.toSecondOfDay()
+                val minutesSince = Math.floorMod(secondsSinceMidnightDiff, 24 * 60 * 60) / 60
                 if (minutesSince in 0 until 15) {
                     notificationHelper.showReminder(habit)
                 }

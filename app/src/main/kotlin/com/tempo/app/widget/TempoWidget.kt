@@ -33,14 +33,14 @@ import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.flow.first
 import java.time.LocalDate
 
-private val WidgetBackground = Color(0xFFFFFBFE)
-private val WidgetOnBackground = Color(0xFF1C1B1F)
-private val WidgetDoneBackground = Color(0xFFEADDFF)
-private val WidgetOnDoneBackground = Color(0xFF21005D)
-private val WidgetPendingBackground = Color(0xFFE7E0EC)
-private val WidgetOnPendingBackground = Color(0xFF49454F)
-
-private fun solidColorProvider(color: Color) = ColorProvider(day = color, night = color)
+// Day/night pairs mirroring the app's own TempoTheme light/dark palette (see ui/theme/Color.kt),
+// since the widget can't read MaterialTheme/GlanceTheme directly.
+private val WidgetBackground = ColorProvider(day = Color(0xFFFFFBFE), night = Color(0xFF1C1B1F))
+private val WidgetOnBackground = ColorProvider(day = Color(0xFF1C1B1F), night = Color(0xFFE6E1E5))
+private val WidgetDoneBackground = ColorProvider(day = Color(0xFFEADDFF), night = Color(0xFF4F378B))
+private val WidgetOnDoneBackground = ColorProvider(day = Color(0xFF21005D), night = Color(0xFFEADDFF))
+private val WidgetPendingBackground = ColorProvider(day = Color(0xFFE7E0EC), night = Color(0xFF49454F))
+private val WidgetOnPendingBackground = ColorProvider(day = Color(0xFF49454F), night = Color(0xFFCAC4D0))
 
 class TempoWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
@@ -67,13 +67,13 @@ private fun TempoWidgetContent(habits: List<HabitWithTodayStatus>) {
     ) {
         Text(
             text = "Today",
-            style = TextStyle(fontWeight = FontWeight.Bold, color = solidColorProvider(WidgetOnBackground)),
+            style = TextStyle(fontWeight = FontWeight.Bold, color = WidgetOnBackground),
         )
         Spacer(modifier = GlanceModifier.height(8.dp))
         if (habits.isEmpty()) {
             Text(
                 text = "No habits today",
-                style = TextStyle(color = solidColorProvider(WidgetOnBackground)),
+                style = TextStyle(color = WidgetOnBackground),
             )
         } else {
             habits.take(6).forEach { item ->
@@ -101,12 +101,12 @@ private fun HabitWidgetRow(item: HabitWithTodayStatus) {
     ) {
         Text(
             text = "${item.habit.icon} ${item.habit.name}",
-            style = TextStyle(color = solidColorProvider(onBackground)),
+            style = TextStyle(color = onBackground),
         )
         Spacer(modifier = GlanceModifier.width(8.dp))
         Text(
             text = if (done) "✓" else "○",
-            style = TextStyle(color = solidColorProvider(onBackground), fontWeight = FontWeight.Bold),
+            style = TextStyle(color = onBackground, fontWeight = FontWeight.Bold),
         )
     }
 }
