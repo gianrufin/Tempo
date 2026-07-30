@@ -40,6 +40,8 @@ private val WidgetOnDoneBackground = Color(0xFF21005D)
 private val WidgetPendingBackground = Color(0xFFE7E0EC)
 private val WidgetOnPendingBackground = Color(0xFF49454F)
 
+private fun solidColorProvider(color: Color) = ColorProvider(day = color, night = color)
+
 class TempoWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val repository = EntryPointAccessors.fromApplication(
@@ -65,13 +67,13 @@ private fun TempoWidgetContent(habits: List<HabitWithTodayStatus>) {
     ) {
         Text(
             text = "Today",
-            style = TextStyle(fontWeight = FontWeight.Bold, color = ColorProvider(WidgetOnBackground)),
+            style = TextStyle(fontWeight = FontWeight.Bold, color = solidColorProvider(WidgetOnBackground)),
         )
         Spacer(modifier = GlanceModifier.height(8.dp))
         if (habits.isEmpty()) {
             Text(
                 text = "No habits today",
-                style = TextStyle(color = ColorProvider(WidgetOnBackground)),
+                style = TextStyle(color = solidColorProvider(WidgetOnBackground)),
             )
         } else {
             habits.take(6).forEach { item ->
@@ -99,12 +101,12 @@ private fun HabitWidgetRow(item: HabitWithTodayStatus) {
     ) {
         Text(
             text = "${item.habit.icon} ${item.habit.name}",
-            style = TextStyle(color = ColorProvider(onBackground)),
+            style = TextStyle(color = solidColorProvider(onBackground)),
         )
         Spacer(modifier = GlanceModifier.width(8.dp))
         Text(
             text = if (done) "✓" else "○",
-            style = TextStyle(color = ColorProvider(onBackground), fontWeight = FontWeight.Bold),
+            style = TextStyle(color = solidColorProvider(onBackground), fontWeight = FontWeight.Bold),
         )
     }
 }
