@@ -56,6 +56,38 @@ class NotificationHelper @Inject constructor(
         }
     }
 
+    fun showStreakRisk(habit: Habit, currentStreak: Int) {
+        val notificationId = STREAK_RISK_NOTIFICATION_ID_OFFSET + habit.id.toInt()
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle("🔥 ${habit.icon} ${habit.name}'s streak is at risk")
+            .setContentText("$currentStreak day streak — complete it before the day ends")
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setAutoCancel(true)
+            .build()
+        notifyIfPermitted(notificationId, notification)
+    }
+
+    fun showWeeklyRecap(overallRatePercent: Int, periodLabel: String) {
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle("Your week in Tempo")
+            .setContentText("$overallRatePercent% overall completion, $periodLabel")
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setAutoCancel(true)
+            .build()
+        notifyIfPermitted(WEEKLY_RECAP_NOTIFICATION_ID, notification)
+    }
+
+    private fun notifyIfPermitted(notificationId: Int, notification: android.app.Notification) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) ==
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) {
+            NotificationManagerCompat.from(context).notify(notificationId, notification)
+        }
+    }
+
     private fun actionIntent(action: String, habitId: Long, notificationId: Int): PendingIntent {
         val intent = Intent(context, ReminderActionReceiver::class.java).apply {
             this.action = action
@@ -72,5 +104,7 @@ class NotificationHelper @Inject constructor(
 
     companion object {
         const val CHANNEL_ID = "habit_reminders"
+        private const val STREAK_RISK_NOTIFICATION_ID_OFFSET = 1_000_000
+        private const val WEEKLY_RECAP_NOTIFICATION_ID = 2_000_000
     }
 }

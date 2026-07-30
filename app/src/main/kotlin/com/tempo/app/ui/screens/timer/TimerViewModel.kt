@@ -2,13 +2,21 @@ package com.tempo.app.ui.screens.timer
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.tempo.app.data.repository.HabitRepository
+import com.tempo.app.domain.model.Habit
+import com.tempo.app.widget.WidgetRefresher
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import android.content.Context
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 import javax.inject.Inject
 
 enum class TimerMode(val label: String) {
@@ -27,19 +35,30 @@ data class TimerUiState(
     val stopwatchElapsedSeconds: Int = 0,
     val countdownSetMinutes: Int = 10,
     val countdownRemainingSeconds: Int = 10 * 60,
+    val linkedHabitId: Long? = null,
 )
 
 @HiltViewModel
-class TimerViewModel @Inject constructor() : ViewModel() {
+class TimerViewModel @Inject constructor(
+    private val repository: HabitRepository,
+    @ApplicationContext private val appContext: Context,
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(TimerUiState())
     val uiState: StateFlow<TimerUiState> = _uiState.asStateFlow()
+
+    val activeHabits: StateFlow<List<Habit>> = repository.observeActiveHabits()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private var tickerJob: Job? = null
 
     fun onSelectMode(mode: TimerMode) {
         pause()
         _uiState.value = _uiState.value.copy(mode = mode)
+    }
+
+    fun onSelectLinkedHabit(habitId: Long?) {
+        _uiState.value = _uiState.value.copy(linkedHabitId = habitId)
     }
 
     fun start() {
@@ -87,6 +106,7 @@ class TimerViewModel @Inject constructor() : ViewModel() {
             TimerMode.POMODORO -> {
                 if (state.pomodoroRemainingSeconds <= 1) {
                     val nowBreak = !state.pomodoroIsBreak
+                    if (nowBreak) onPomodoroWorkSessionCompleted(state.linkedHabitId)
                     state.copy(
                         pomodoroIsBreak = nowBreak,
                         pomodoroRemainingSeconds = if (nowBreak) state.pomodoroBreakMinutes * 60 else state.pomodoroWorkMinutes * 60,
@@ -105,6 +125,15 @@ class TimerViewModel @Inject constructor() : ViewModel() {
                     state.copy(countdownRemainingSeconds = state.countdownRemainingSeconds - 1)
                 }
             }
+        }
+    }
+
+    /** A finished Pomodoro focus block (transitioning into its break) marks the linked habit done for today. */
+    private fun onPomodoroWorkSessionCompleted(linkedHabitId: Long?) {
+        if (linkedHabitId == null) return
+        viewModelScope.launch {
+            repository.markDone(linkedHabitId, LocalDate.now())
+            WidgetRefresher.refresh(appContext)
         }
     }
 

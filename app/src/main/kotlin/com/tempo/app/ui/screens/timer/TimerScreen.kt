@@ -15,6 +15,8 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -24,10 +26,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.tempo.app.domain.model.Habit
 import com.tempo.app.ui.theme.TempoExtraShapes
 
 @Composable
@@ -66,6 +72,8 @@ fun TimerScreen(modifier: Modifier = Modifier, viewModel: TimerViewModel = hiltV
 
 @Composable
 private fun PomodoroContent(state: TimerUiState, viewModel: TimerViewModel) {
+    val habits by viewModel.activeHabits.collectAsState()
+
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(24.dp)) {
         Text(
             text = if (state.pomodoroIsBreak) "Break" else "Focus",
@@ -74,6 +82,34 @@ private fun PomodoroContent(state: TimerUiState, viewModel: TimerViewModel) {
         )
         TimeDisplay(seconds = state.pomodoroRemainingSeconds)
         TimerControls(isRunning = state.isRunning, onStart = viewModel::start, onPause = viewModel::pause, onReset = viewModel::reset)
+        if (habits.isNotEmpty()) {
+            LinkedHabitPicker(
+                habits = habits,
+                linkedHabitId = state.linkedHabitId,
+                onSelect = viewModel::onSelectLinkedHabit,
+            )
+        }
+    }
+}
+
+@Composable
+private fun LinkedHabitPicker(habits: List<Habit>, linkedHabitId: Long?, onSelect: (Long?) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    val linkedHabit = habits.firstOrNull { it.id == linkedHabitId }
+
+    OutlinedButton(onClick = { expanded = true }, shape = TempoExtraShapes.pill) {
+        Text(
+            if (linkedHabit != null) "Completes: ${linkedHabit.icon} ${linkedHabit.name}" else "Link a habit to this focus session",
+        )
+    }
+    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        DropdownMenuItem(text = { Text("None") }, onClick = { onSelect(null); expanded = false })
+        habits.forEach { habit ->
+            DropdownMenuItem(
+                text = { Text("${habit.icon} ${habit.name}") },
+                onClick = { onSelect(habit.id); expanded = false },
+            )
+        }
     }
 }
 

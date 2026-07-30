@@ -20,5 +20,7 @@ class TempoApplication : Application(), Configuration.Provider {
     override fun onCreate() {
         super.onCreate()
         reminderScheduler.schedule()
+        reminderScheduler.scheduleStreakRiskCheck()
+        reminderScheduler.scheduleWeeklyRecap()
     }
 }

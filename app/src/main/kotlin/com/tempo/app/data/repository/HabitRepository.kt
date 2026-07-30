@@ -22,6 +22,9 @@ interface HabitRepository {
     /** Cycles a habit's status for [date]: none -> done -> excused (if freezes remain) -> none. */
     suspend fun cycleCompletion(habitId: Long, date: LocalDate)
 
+    /** Unconditionally marks [date] as done, e.g. when a linked Pomodoro session completes. */
+    suspend fun markDone(habitId: Long, date: LocalDate)
+
     /** Directly marks [date] as an excused/frozen day, if the habit has freezes left this week. */
     suspend fun markExcused(habitId: Long, date: LocalDate)
 

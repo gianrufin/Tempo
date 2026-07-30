@@ -18,6 +18,9 @@ interface HabitCompletionDao {
     @Query("SELECT * FROM habit_completions WHERE habitId = :habitId")
     fun observeForHabit(habitId: Long): Flow<List<HabitCompletionEntity>>
 
+    @Query("SELECT * FROM habit_completions WHERE habitId = :habitId")
+    suspend fun getAllForHabit(habitId: Long): List<HabitCompletionEntity>
+
     @Query("SELECT * FROM habit_completions WHERE habitId = :habitId AND date = :date LIMIT 1")
     suspend fun getForHabitAndDate(habitId: Long, date: LocalDate): HabitCompletionEntity?
 

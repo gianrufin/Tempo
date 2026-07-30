@@ -137,6 +137,17 @@ class HabitRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun markDone(habitId: Long, date: LocalDate) {
+        completionDao.upsert(
+            HabitCompletionEntity(
+                habitId = habitId,
+                date = date,
+                status = HabitCompletionStatus.DONE,
+                completedAt = Instant.now(),
+            ),
+        )
+    }
+
     override suspend fun markExcused(habitId: Long, date: LocalDate) {
         if (freezesRemaining(habitId, date) <= 0) return
         completionDao.upsert(
