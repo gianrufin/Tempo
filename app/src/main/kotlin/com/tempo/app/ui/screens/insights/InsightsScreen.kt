@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -32,9 +33,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.tempo.app.domain.model.DayAggregate
 import com.tempo.app.domain.model.HabitInsight
 import com.tempo.app.domain.model.InsightsPeriod
 import com.tempo.app.domain.model.InsightsSummary
+import com.tempo.app.domain.model.Mood
 import com.tempo.app.ui.components.shareCsv
 import com.tempo.app.ui.components.shareProgressText
 import com.tempo.app.ui.theme.TempoExtraShapes
@@ -48,6 +51,8 @@ fun InsightsScreen(
 ) {
     val period by viewModel.period.collectAsState()
     val summary by viewModel.summary.collectAsState()
+    val trend by viewModel.trend.collectAsState()
+    val moodCorrelation by viewModel.moodCorrelation.collectAsState()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -75,6 +80,13 @@ fun InsightsScreen(
             Text("No data yet.", style = MaterialTheme.typography.bodyMedium)
         } else {
             OverallCard(summary = currentSummary)
+
+            if (trend.isNotEmpty()) {
+                TrendChart(trend)
+            }
+            if (moodCorrelation.isNotEmpty()) {
+                MoodCorrelationSection(moodCorrelation)
+            }
 
             if (currentSummary.habitInsights.isEmpty()) {
                 Text("Add a habit to see insights here.", style = MaterialTheme.typography.bodyMedium)
@@ -155,6 +167,57 @@ private fun OverallCard(summary: InsightsSummary) {
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onPrimaryContainer,
             )
+        }
+    }
+}
+
+/** A simple 12-week bar sparkline of daily completion rate, grouped into weekly averages. */
+@Composable
+private fun TrendChart(trend: List<DayAggregate>) {
+    val weeklyAverages = trend.chunked(7).map { week ->
+        val fractions = week.filter { it.scheduledCount > 0 }.map { it.completionFraction }
+        if (fractions.isEmpty()) 0f else fractions.average().toFloat()
+    }
+
+    Surface(shape = TempoExtraShapes.card, color = MaterialTheme.colorScheme.surfaceVariant) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("12-week trend", style = MaterialTheme.typography.titleMedium)
+            Row(
+                modifier = Modifier.fillMaxWidth().height(60.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.Bottom,
+            ) {
+                weeklyAverages.forEach { fraction ->
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(fraction.coerceIn(0.05f, 1f))
+                            .clip(TempoExtraShapes.pill)
+                            .background(MaterialTheme.colorScheme.primary),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MoodCorrelationSection(moodCorrelation: Map<Mood, Int>) {
+    Surface(shape = TempoExtraShapes.card, color = MaterialTheme.colorScheme.surfaceVariant) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Completion by mood", style = MaterialTheme.typography.titleMedium)
+            Mood.entries.forEach { mood ->
+                val rate = moodCorrelation[mood]
+                if (rate != null) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text("${mood.emoji}", style = MaterialTheme.typography.bodyLarge)
+                        Text("$rate%", style = MaterialTheme.typography.bodyLarge)
+                    }
+                }
+            }
         }
     }
 }
