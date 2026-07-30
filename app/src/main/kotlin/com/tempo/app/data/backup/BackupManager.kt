@@ -58,6 +58,7 @@ class BackupManager @Inject constructor(
 
             File(dbFile.path + "-wal").delete()
             File(dbFile.path + "-shm").delete()
+            Unit
         }
     }
 
