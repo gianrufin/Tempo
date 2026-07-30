@@ -1,0 +1,159 @@
+package com.tempo.app.ui.screens.habit
+
+import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.tempo.app.data.repository.HabitRepository
+import com.tempo.app.domain.model.Habit
+import com.tempo.app.domain.model.RecurrenceRule
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import java.time.DayOfWeek
+import java.time.LocalDate
+import javax.inject.Inject
+
+enum class RecurrenceType { DAILY, SPECIFIC_WEEKDAYS, EVERY_N_DAYS, TIMES_PER_WEEK, MONTHLY_BY_DATE }
+
+data class AddEditHabitUiState(
+    val habitId: Long? = null,
+    val name: String = "",
+    val icon: String = DEFAULT_ICONS.first(),
+    val colorArgb: Long = DEFAULT_COLORS.first(),
+    val recurrenceType: RecurrenceType = RecurrenceType.DAILY,
+    val selectedWeekdays: Set<DayOfWeek> = setOf(DayOfWeek.MONDAY),
+    val everyNDays: Int = 2,
+    val timesPerWeek: Int = 3,
+    val monthlyDayOfMonth: Int = 1,
+    val streakFreezeAllowance: Int = 1,
+    val graceDays: Int = 1,
+    val isSaved: Boolean = false,
+) {
+    val isValid: Boolean get() = name.isNotBlank()
+
+    companion object {
+        val DEFAULT_ICONS = listOf("💧", "🏃", "📚", "🧘", "🛌", "✍️", "🥗", "💪")
+        val DEFAULT_COLORS = listOf(0xFF6750A4L, 0xFF386A20L, 0xFFB3261EL, 0xFF7D5260L, 0xFF4FC3F7L, 0xFFFF7A45L)
+    }
+}
+
+@HiltViewModel
+class AddEditHabitViewModel @Inject constructor(
+    private val repository: HabitRepository,
+    savedStateHandle: SavedStateHandle,
+) : ViewModel() {
+
+    private val habitIdArg: Long? = savedStateHandle.get<Long>("habitId")?.takeIf { it != 0L }
+
+    private val _uiState = MutableStateFlow(AddEditHabitUiState(habitId = habitIdArg))
+    val uiState = _uiState.asStateFlow()
+
+    init {
+        habitIdArg?.let { id ->
+            viewModelScope.launch {
+                repository.getHabit(id)?.let { habit -> _uiState.value = habit.toUiState() }
+            }
+        }
+    }
+
+    fun onNameChange(value: String) = update { it.copy(name = value) }
+    fun onIconChange(value: String) = update { it.copy(icon = value) }
+    fun onColorChange(value: Long) = update { it.copy(colorArgb = value) }
+    fun onRecurrenceTypeChange(value: RecurrenceType) = update { it.copy(recurrenceType = value) }
+    fun onToggleWeekday(day: DayOfWeek) = update {
+        val current = it.selectedWeekdays
+        it.copy(selectedWeekdays = if (day in current) current - day else current + day)
+    }
+    fun onEveryNDaysChange(value: Int) = update { it.copy(everyNDays = value.coerceIn(1, 60)) }
+    fun onTimesPerWeekChange(value: Int) = update { it.copy(timesPerWeek = value.coerceIn(1, 7)) }
+    fun onMonthlyDayChange(value: Int) = update { it.copy(monthlyDayOfMonth = value.coerceIn(1, 31)) }
+    fun onStreakFreezeAllowanceChange(value: Int) = update { it.copy(streakFreezeAllowance = value.coerceIn(0, 7)) }
+    fun onGraceDaysChange(value: Int) = update { it.copy(graceDays = value.coerceIn(0, 7)) }
+
+    fun save() {
+        val state = _uiState.value
+        if (!state.isValid) return
+        viewModelScope.launch {
+            val recurrenceRule = state.toRecurrenceRule()
+            if (state.habitId == null) {
+                repository.addHabit(
+                    Habit(
+                        name = state.name.trim(),
+                        icon = state.icon,
+                        colorArgb = state.colorArgb,
+                        recurrenceRule = recurrenceRule,
+                        streakFreezeAllowance = state.streakFreezeAllowance,
+                        graceDays = state.graceDays,
+                        createdAt = LocalDate.now(),
+                    ),
+                )
+            } else {
+                val existing = repository.getHabit(state.habitId) ?: return@launch
+                repository.updateHabit(
+                    existing.copy(
+                        name = state.name.trim(),
+                        icon = state.icon,
+                        colorArgb = state.colorArgb,
+                        recurrenceRule = recurrenceRule,
+                        streakFreezeAllowance = state.streakFreezeAllowance,
+                        graceDays = state.graceDays,
+                    ),
+                )
+            }
+            _uiState.value = _uiState.value.copy(isSaved = true)
+        }
+    }
+
+    fun delete() {
+        val id = _uiState.value.habitId ?: return
+        viewModelScope.launch {
+            repository.archiveHabit(id)
+            _uiState.value = _uiState.value.copy(isSaved = true)
+        }
+    }
+
+    private fun update(transform: (AddEditHabitUiState) -> AddEditHabitUiState) {
+        _uiState.value = transform(_uiState.value)
+    }
+
+    private fun Habit.toUiState(): AddEditHabitUiState {
+        val base = AddEditHabitUiState(
+            habitId = id,
+            name = name,
+            icon = icon,
+            colorArgb = colorArgb,
+            streakFreezeAllowance = streakFreezeAllowance,
+            graceDays = graceDays,
+        )
+        return when (val rule = recurrenceRule) {
+            is RecurrenceRule.Daily -> base.copy(recurrenceType = RecurrenceType.DAILY)
+            is RecurrenceRule.SpecificWeekdays -> base.copy(
+                recurrenceType = RecurrenceType.SPECIFIC_WEEKDAYS,
+                selectedWeekdays = rule.weekdays,
+            )
+            is RecurrenceRule.EveryNDays -> base.copy(
+                recurrenceType = RecurrenceType.EVERY_N_DAYS,
+                everyNDays = rule.n,
+            )
+            is RecurrenceRule.TimesPerWeek -> base.copy(
+                recurrenceType = RecurrenceType.TIMES_PER_WEEK,
+                timesPerWeek = rule.times,
+            )
+            is RecurrenceRule.MonthlyByDate -> base.copy(
+                recurrenceType = RecurrenceType.MONTHLY_BY_DATE,
+                monthlyDayOfMonth = rule.dayOfMonth,
+            )
+        }
+    }
+
+    private fun AddEditHabitUiState.toRecurrenceRule(): RecurrenceRule = when (recurrenceType) {
+        RecurrenceType.DAILY -> RecurrenceRule.Daily
+        RecurrenceType.SPECIFIC_WEEKDAYS -> RecurrenceRule.SpecificWeekdays(
+            selectedWeekdays.ifEmpty { setOf(LocalDate.now().dayOfWeek) },
+        )
+        RecurrenceType.EVERY_N_DAYS -> RecurrenceRule.EveryNDays(everyNDays, LocalDate.now().toEpochDay())
+        RecurrenceType.TIMES_PER_WEEK -> RecurrenceRule.TimesPerWeek(timesPerWeek)
+        RecurrenceType.MONTHLY_BY_DATE -> RecurrenceRule.MonthlyByDate(monthlyDayOfMonth)
+    }
+}
