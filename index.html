@@ -1,0 +1,646 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tempo — Find your tempo</title>
+<meta name="description" content="Tempo: habits, tasks, and focus in one rhythm. Streaks that forgive, a focus timer with auto-DND, and best-time reminders. Free for Android." />
+<link rel="icon" href="assets/tempo-icon.png" />
+<style>
+  @font-face {
+    font-family: "Space Grotesk";
+    font-weight: 400;
+    font-style: normal;
+    src: url("fonts/SpaceGrotesk-400.ttf") format("truetype");
+    font-display: swap;
+  }
+  @font-face {
+    font-family: "Space Grotesk";
+    font-weight: 500;
+    font-style: normal;
+    src: url("fonts/SpaceGrotesk-500.ttf") format("truetype");
+    font-display: swap;
+  }
+  @font-face {
+    font-family: "Space Grotesk";
+    font-weight: 600;
+    font-style: normal;
+    src: url("fonts/SpaceGrotesk-600.ttf") format("truetype");
+    font-display: swap;
+  }
+  @font-face {
+    font-family: "Space Grotesk";
+    font-weight: 700;
+    font-style: normal;
+    src: url("fonts/SpaceGrotesk-700.ttf") format("truetype");
+    font-display: swap;
+  }
+
+  :root {
+    --ink: #17131f;
+    --ink-2: #1e1829;
+    --ink-3: #292139;
+    --paper: #efebf5;
+    --paper-2: #ffffff;
+    --paper-3: #e2dced;
+    --brand: #7c5fc4;
+    --brand-strong: #6750a4;
+    --gold: #e7a94c;
+    --gold-soft: #f0c589;
+    --text-on-ink: #f4efe9;
+    --text-on-ink-muted: #b8aecb;
+    --text-on-paper: #211a2c;
+    --text-on-paper-muted: #635c74;
+    --hairline-ink: rgba(244, 239, 233, 0.14);
+    --hairline-paper: rgba(33, 26, 44, 0.12);
+    --bg: var(--ink);
+    --bg-raised: var(--ink-2);
+    --bg-raised-2: var(--ink-3);
+    --fg: var(--text-on-ink);
+    --fg-muted: var(--text-on-ink-muted);
+    --hairline: var(--hairline-ink);
+    --card-shadow: 0 30px 60px -30px rgba(0, 0, 0, 0.6);
+  }
+  :root[data-theme="light"] {
+    --bg: var(--paper);
+    --bg-raised: var(--paper-2);
+    --bg-raised-2: var(--paper-3);
+    --fg: var(--text-on-paper);
+    --fg-muted: var(--text-on-paper-muted);
+    --hairline: var(--hairline-paper);
+    --card-shadow: 0 30px 60px -35px rgba(103, 80, 164, 0.28);
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: var(--paper);
+      --bg-raised: var(--paper-2);
+      --bg-raised-2: var(--paper-3);
+      --fg: var(--text-on-paper);
+      --fg-muted: var(--text-on-paper-muted);
+      --hairline: var(--hairline-paper);
+      --card-shadow: 0 30px 60px -35px rgba(103, 80, 164, 0.28);
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html { color-scheme: dark light; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: "Space Grotesk", -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    transition: background 0.3s ease, color 0.3s ease;
+  }
+  ::selection { background: var(--gold); color: #171220; }
+
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 28px; }
+
+  .grain {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.05;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    backdrop-filter: blur(14px);
+    background: color-mix(in srgb, var(--bg) 78%, transparent);
+    border-bottom: 1px solid var(--hairline);
+  }
+  .nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 0;
+  }
+  .wordmark {
+    font-weight: 700;
+    font-size: 1.2rem;
+    letter-spacing: -0.02em;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--fg);
+    text-decoration: none;
+  }
+  .wordmark img { width: 30px; height: 30px; border-radius: 8px; display: block; }
+  .nav-links { display: flex; align-items: center; gap: 28px; }
+  .nav-links a:not(.nav-cta) {
+    color: var(--fg-muted);
+    text-decoration: none;
+    font-size: 0.92rem;
+    font-weight: 500;
+  }
+  .nav-links a:not(.nav-cta):hover { color: var(--fg); }
+  .nav-cta {
+    padding: 9px 18px;
+    border-radius: 999px;
+    background: var(--fg);
+    color: var(--bg);
+    font-weight: 700;
+    font-size: 0.88rem;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .theme-toggle {
+    border: 1px solid var(--hairline);
+    background: transparent;
+    color: var(--fg);
+    border-radius: 999px;
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    font-size: 0.95rem;
+    font-family: inherit;
+  }
+  .theme-toggle:focus-visible, a:focus-visible, button:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
+  }
+
+  .eyebrow {
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--gold);
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .eyebrow::before {
+    content: "";
+    width: 22px;
+    height: 1px;
+    background: linear-gradient(90deg, var(--gold), transparent);
+  }
+
+  .hero {
+    display: grid;
+    grid-template-columns: 1.05fr 0.95fr;
+    gap: 56px;
+    align-items: center;
+    padding: 84px 0 96px;
+  }
+  h1.headline {
+    font-size: clamp(2.6rem, 5.4vw, 4.4rem);
+    line-height: 0.98;
+    letter-spacing: -0.03em;
+    font-weight: 700;
+    margin: 18px 0 22px;
+    text-wrap: balance;
+  }
+  h1.headline em {
+    font-style: normal;
+    background: linear-gradient(100deg, var(--gold) 10%, var(--brand) 90%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .lede {
+    font-size: 1.14rem;
+    color: var(--fg-muted);
+    max-width: 46ch;
+    margin: 0 0 34px;
+  }
+  .hero-ctas { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+  .btn-primary {
+    background: linear-gradient(100deg, var(--gold), var(--gold-soft));
+    color: #201408;
+    font-weight: 700;
+    font-size: 0.98rem;
+    padding: 14px 26px;
+    border-radius: 999px;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 18px 34px -16px rgba(231, 169, 76, 0.55);
+  }
+  .btn-ghost {
+    color: var(--fg);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.95rem;
+    border-bottom: 1px solid var(--hairline);
+    padding-bottom: 2px;
+  }
+  .fine-print {
+    margin-top: 16px;
+    font-size: 0.82rem;
+    color: var(--fg-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* phone mockup */
+  .phone-stage { display: flex; justify-content: center; }
+  .phone {
+    width: 272px;
+    border-radius: 40px;
+    padding: 14px;
+    background: var(--bg-raised);
+    border: 1px solid var(--hairline);
+    box-shadow: var(--card-shadow);
+    position: relative;
+  }
+  .phone::before {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border-radius: 40px;
+    padding: 1px;
+    background: linear-gradient(160deg, var(--gold), transparent 40%, var(--brand) 100%);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0.55;
+    pointer-events: none;
+  }
+  .screen {
+    background: var(--ink);
+    border-radius: 28px;
+    padding: 22px 18px 18px;
+    color: var(--text-on-ink);
+    min-height: 460px;
+  }
+  .screen .s-eyebrow {
+    font-size: 0.68rem;
+    color: var(--text-on-ink-muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .screen h3 {
+    margin: 4px 0 18px;
+    font-size: 1.3rem;
+    letter-spacing: -0.02em;
+    font-weight: 600;
+  }
+  .ring {
+    width: 148px;
+    height: 148px;
+    margin: 6px auto 18px;
+    border-radius: 50%;
+    background: conic-gradient(var(--gold) 0turn 0.62turn, rgba(255,255,255,0.09) 0.62turn 1turn);
+    display: grid;
+    place-items: center;
+    position: relative;
+  }
+  .ring::before {
+    content: "";
+    width: 116px;
+    height: 116px;
+    border-radius: 50%;
+    background: var(--ink);
+    position: absolute;
+  }
+  .ring span {
+    position: relative;
+    font-variant-numeric: tabular-nums;
+    font-size: 1.55rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  .ring small {
+    display: block;
+    position: relative;
+    font-size: 0.62rem;
+    color: var(--text-on-ink-muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-top: 2px;
+    font-weight: 500;
+  }
+  .row-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 11px 0;
+    border-bottom: 1px solid var(--hairline-ink);
+    font-size: 0.88rem;
+  }
+  .row-item:last-child { border-bottom: none; }
+  .row-item .rt { display: flex; align-items: center; gap: 10px; }
+  .chip-flame {
+    font-variant-numeric: tabular-nums;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--gold);
+    background: rgba(231, 169, 76, 0.14);
+    padding: 3px 8px;
+    border-radius: 999px;
+  }
+  .dot-ico { width: 8px; height: 8px; border-radius: 999px; }
+
+  section { padding: 88px 0; border-top: 1px solid var(--hairline); }
+  .section-head { max-width: 62ch; margin-bottom: 52px; }
+  .section-head h2 {
+    font-size: clamp(1.8rem, 3vw, 2.5rem);
+    letter-spacing: -0.02em;
+    margin: 14px 0 12px;
+    text-wrap: balance;
+    font-weight: 700;
+  }
+  .section-head p { color: var(--fg-muted); font-size: 1.03rem; max-width: 54ch; }
+
+  .feature-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--hairline);
+    border: 1px solid var(--hairline);
+    border-radius: 22px;
+    overflow: hidden;
+  }
+  .feature {
+    background: var(--bg);
+    padding: 30px 26px;
+    position: relative;
+  }
+  .feature::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 26px; right: 26px;
+    height: 2px;
+    background: linear-gradient(90deg, var(--gold), var(--brand));
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.35s ease;
+  }
+  .feature:hover::before { transform: scaleX(1); }
+  .feature .f-num {
+    font-size: 0.75rem;
+    color: var(--fg-muted);
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+  }
+  .feature h3 {
+    font-size: 1.08rem;
+    margin: 14px 0 8px;
+    letter-spacing: -0.01em;
+    font-weight: 600;
+  }
+  .feature p { color: var(--fg-muted); font-size: 0.92rem; margin: 0; }
+
+  /* sound strip */
+  .tracklist {
+    border: 1px solid var(--hairline);
+    border-radius: 20px;
+    overflow: hidden;
+    background: var(--bg-raised);
+  }
+  .track {
+    display: grid;
+    grid-template-columns: 46px 1fr auto auto;
+    align-items: center;
+    gap: 18px;
+    padding: 16px 22px;
+    border-bottom: 1px solid var(--hairline);
+  }
+  .track:last-child { border-bottom: none; }
+  .track .idx {
+    color: var(--fg-muted);
+    font-size: 0.85rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+  }
+  .track .tname { font-weight: 700; letter-spacing: -0.01em; }
+  .track .tdesc { display: block; font-weight: 400; color: var(--fg-muted); font-size: 0.85rem; margin-top: 2px; }
+  .track .wave { display: flex; align-items: flex-end; gap: 3px; height: 22px; }
+  .track .wave i {
+    display: block;
+    width: 3px;
+    border-radius: 2px;
+    background: linear-gradient(180deg, var(--gold), var(--brand));
+    opacity: 0.85;
+  }
+  .track .dur {
+    font-size: 0.82rem;
+    color: var(--fg-muted);
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+  }
+
+  .cta-band {
+    border-top: 1px solid var(--hairline);
+    padding: 100px 0;
+    text-align: center;
+  }
+  .cta-band h2 {
+    font-size: clamp(2rem, 4vw, 3.1rem);
+    letter-spacing: -0.03em;
+    margin: 0 0 16px;
+    text-wrap: balance;
+    font-weight: 700;
+  }
+  .cta-band p { color: var(--fg-muted); margin: 0 0 34px; font-size: 1.05rem; }
+
+  footer {
+    border-top: 1px solid var(--hairline);
+    padding: 32px 0 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: var(--fg-muted);
+    font-size: 0.85rem;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  footer a { color: var(--fg-muted); }
+
+  @media (max-width: 860px) {
+    .hero { grid-template-columns: 1fr; padding-top: 48px; }
+    .phone-stage { order: -1; margin-bottom: 12px; }
+    .feature-grid { grid-template-columns: 1fr; }
+    .nav-links a:not(.nav-cta) { display: none; }
+    .track { grid-template-columns: 32px 1fr auto; }
+    .track .dur { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="grain"></div>
+
+<header>
+  <div class="wrap nav">
+    <a class="wordmark" href="#top"><img src="assets/tempo-icon.png" alt="Tempo" />Tempo</a>
+    <nav class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#sounds">Sound design</a>
+      <button class="theme-toggle" id="themeToggle" aria-label="Toggle color theme" type="button">◐</button>
+      <a class="nav-cta" href="https://github.com/gianrufin/Tempo/releases/tag/debug-latest">Get the app</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap" id="top">
+  <section class="hero" style="border-top:none; padding-top: 72px;">
+    <div>
+      <span class="eyebrow">Habits · Tasks · Focus</span>
+      <h1 class="headline">Find your <em>tempo.</em></h1>
+      <p class="lede">
+        One app for the habits you're building, the tasks you're clearing, and the focus
+        blocks in between — built for the version of productivity that's felt, not just tracked.
+      </p>
+      <div class="hero-ctas">
+        <a class="btn-primary" href="https://github.com/gianrufin/Tempo/releases/tag/debug-latest">
+          ↓ Download for Android
+        </a>
+        <a class="btn-ghost" href="#features">See what's inside</a>
+      </div>
+      <p class="fine-print">Free · Open source · Direct install, no Play Store account needed</p>
+    </div>
+
+    <div class="phone-stage">
+      <div class="phone">
+        <div class="screen">
+          <div class="s-eyebrow">Today · Focus session</div>
+          <h3>Deep work</h3>
+          <div class="ring"><span>18:24<small>remaining</small></span></div>
+          <div class="row-item">
+            <span class="rt"><span class="dot-ico" style="background:var(--gold)"></span>Morning pages</span>
+            <span class="chip-flame">12 day streak</span>
+          </div>
+          <div class="row-item">
+            <span class="rt"><span class="dot-ico" style="background:var(--brand)"></span>Read 20 min</span>
+            <span class="chip-flame">6 day streak</span>
+          </div>
+          <div class="row-item">
+            <span class="rt"><span class="dot-ico" style="background:#5fbf8f"></span>Ship the deck</span>
+            <span class="chip-flame">due today</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="features">
+    <div class="section-head">
+      <span class="eyebrow">What's inside</span>
+      <h2>Everything a habit tracker forgets to include.</h2>
+      <p>Tempo isn't three apps stitched together — it's one rhythm, with the pieces that
+      usually get left out of "just another habit tracker."</p>
+    </div>
+    <div class="feature-grid">
+      <div class="feature">
+        <span class="f-num">01</span>
+        <h3>Streaks that forgive</h3>
+        <p>Grace days and streak freezes mean one missed morning doesn't erase three weeks of work.</p>
+      </div>
+      <div class="feature">
+        <span class="f-num">02</span>
+        <h3>Focus timer with auto-DND</h3>
+        <p>Pomodoro, countdown, and stopwatch modes that quietly turn on Do Not Disturb the moment a focus block starts.</p>
+      </div>
+      <div class="feature">
+        <span class="f-num">03</span>
+        <h3>Tasks with real checklists</h3>
+        <p>Subtasks, priorities, due dates, and one tap to add anything straight to your phone's calendar.</p>
+      </div>
+      <div class="feature">
+        <span class="f-num">04</span>
+        <h3>Vacation mode</h3>
+        <p>Pause a habit while you travel — it waits for you instead of quietly breaking your streak.</p>
+      </div>
+      <div class="feature">
+        <span class="f-num">05</span>
+        <h3>Best-time insights</h3>
+        <p>Tempo notices when you actually complete a habit and nudges your reminder toward that time.</p>
+      </div>
+      <div class="feature">
+        <span class="f-num">06</span>
+        <h3>Yours, backed up</h3>
+        <p>Local or Drive backups, CSV/JSON import, and a home-screen widget — your data never lives only on one phone.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="sounds">
+    <div class="section-head">
+      <span class="eyebrow">Sound design</span>
+      <h2>Even the notifications have a mood.</h2>
+      <p>Five original tones, named for how they actually sound — pick one, or let the system default carry the day.</p>
+    </div>
+    <div class="tracklist">
+      <div class="track">
+        <span class="idx">01</span>
+        <span><span class="tname">Golden Hour</span><span class="tdesc">Mellow, multi-note — the longest one in the set</span></span>
+        <span class="wave">
+          <i style="height:6px"></i><i style="height:14px"></i><i style="height:9px"></i><i style="height:18px"></i><i style="height:7px"></i>
+        </span>
+        <span class="dur">2.6s</span>
+      </div>
+      <div class="track">
+        <span class="idx">02</span>
+        <span><span class="tname">Aura Ping</span><span class="tdesc">Short, mid-high, a little shimmer</span></span>
+        <span class="wave">
+          <i style="height:16px"></i><i style="height:6px"></i><i style="height:11px"></i><i style="height:5px"></i><i style="height:8px"></i>
+        </span>
+        <span class="dur">0.9s</span>
+      </div>
+      <div class="track">
+        <span class="idx">03</span>
+        <span><span class="tname">Crystal Fizz</span><span class="tdesc">The brightest, crispest one in the set</span></span>
+        <span class="wave">
+          <i style="height:8px"></i><i style="height:18px"></i><i style="height:6px"></i><i style="height:15px"></i><i style="height:10px"></i>
+        </span>
+        <span class="dur">1.0s</span>
+      </div>
+      <div class="track">
+        <span class="idx">04</span>
+        <span><span class="tname">Velvet Pop</span><span class="tdesc">Shortest and deepest — a quick soft thud</span></span>
+        <span class="wave">
+          <i style="height:12px"></i><i style="height:5px"></i><i style="height:9px"></i><i style="height:4px"></i><i style="height:6px"></i>
+        </span>
+        <span class="dur">0.6s</span>
+      </div>
+      <div class="track">
+        <span class="idx">05</span>
+        <span><span class="tname">Cloud Drift</span><span class="tdesc">Warm, soft, and unhurried</span></span>
+        <span class="wave">
+          <i style="height:9px"></i><i style="height:13px"></i><i style="height:7px"></i><i style="height:10px"></i><i style="height:6px"></i>
+        </span>
+        <span class="dur">1.1s</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="cta-band">
+    <span class="eyebrow" style="justify-content:center;">Get started</span>
+    <h2>Your habits deserve<br />better rhythm.</h2>
+    <p>Android · direct APK install · updates in-app after the first install</p>
+    <a class="btn-primary" href="https://github.com/gianrufin/Tempo/releases/tag/debug-latest">↓ Download Tempo</a>
+  </section>
+
+  <footer>
+    <span>Tempo — built by one person, for people who like keeping their own rhythm.</span>
+    <a href="https://github.com/gianrufin/Tempo">Source on GitHub</a>
+  </footer>
+</main>
+
+<script>
+  var root = document.documentElement;
+  var btn = document.getElementById('themeToggle');
+  function currentTheme() {
+    var attr = root.getAttribute('data-theme');
+    if (attr) return attr;
+    return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  }
+  btn.addEventListener('click', function () {
+    var next = currentTheme() === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    btn.textContent = next === 'dark' ? '◐' : '◑';
+  });
+  btn.textContent = currentTheme() === 'dark' ? '◐' : '◑';
+</script>
+</body>
+</html>
