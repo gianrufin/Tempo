@@ -77,10 +77,13 @@ android {
 }
 
 // Names the built APK "tempo.apk" instead of the default "app-debug.apk"/"app-release.apk".
+// outputFileName only exists on the impl class, not the public VariantOutput interface.
 androidComponents {
     onVariants { variant ->
         variant.outputs.forEach { output ->
-            output.outputFileName.set("tempo.apk")
+            if (output is com.android.build.api.variant.impl.VariantOutputImpl) {
+                output.outputFileName.set("tempo.apk")
+            }
         }
     }
 }
