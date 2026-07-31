@@ -36,6 +36,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -63,6 +64,7 @@ import com.tempo.app.BuildConfig
 import com.tempo.app.alarm.AlarmSoundPlayer
 import com.tempo.app.data.preferences.UserPreferences
 import com.tempo.app.data.update.UpdateChecker
+import com.tempo.app.data.update.UpdateDownloadState
 import com.tempo.app.domain.model.ThemeMode
 import com.tempo.app.ui.components.restartApp
 import com.tempo.app.ui.components.shareCsv
@@ -208,12 +210,9 @@ fun SettingsScreen(modifier: Modifier = Modifier, viewModel: SettingsViewModel =
                                 Text("Couldn't check: $it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                             }
                             if (!result.upToDate) {
-                                OutlinedButton(
-                                    onClick = { uriHandler.openUri(UpdateChecker.RELEASES_URL) },
-                                    shape = TempoExtraShapes.pill,
-                                    modifier = Modifier.fillMaxWidth(),
-                                ) {
-                                    Text("View latest release")
+                                InAppUpdateSection(viewModel = viewModel)
+                                TextButton(onClick = { uriHandler.openUri(UpdateChecker.RELEASES_URL) }) {
+                                    Text("Or view the release on GitHub")
                                 }
                             }
                         }
@@ -236,6 +235,79 @@ private fun SettingsSection(title: String, content: @Composable () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(text = title, style = MaterialTheme.typography.titleMedium)
         content()
+    }
+}
+
+@Composable
+private fun InAppUpdateSection(viewModel: SettingsViewModel) {
+    var permissionRefreshTick by remember { mutableStateOf(0) }
+    val canInstall = remember(permissionRefreshTick) { viewModel.canInstallPackages() }
+    val downloadState by viewModel.updateDownloadState.collectAsState()
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (!canInstall) {
+            Text(
+                "Tempo needs permission to install updates it downloads itself — this opens a " +
+                    "system settings screen, just for this app.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            OutlinedButton(
+                onClick = { viewModel.requestInstallPackagesPermission(); permissionRefreshTick++ },
+                shape = TempoExtraShapes.pill,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Allow installing updates")
+            }
+        } else {
+            when (val state = downloadState) {
+                is UpdateDownloadState.Idle -> {
+                    Button(
+                        onClick = { viewModel.downloadUpdate() },
+                        shape = TempoExtraShapes.pill,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Icon(Icons.Filled.FileDownload, contentDescription = null)
+                        Text("  Download & install update")
+                    }
+                }
+                is UpdateDownloadState.Downloading -> {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        LinearProgressIndicator(
+                            progress = { state.progressPercent / 100f },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Text("Downloading… ${state.progressPercent}%", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+                is UpdateDownloadState.ReadyToInstall -> {
+                    Button(
+                        onClick = { viewModel.promptInstallUpdate() },
+                        shape = TempoExtraShapes.pill,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Install now")
+                    }
+                    Text(
+                        "Android will ask you to confirm the install — that system prompt can't be skipped.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                is UpdateDownloadState.Failed -> {
+                    Text(
+                        "Download failed: ${state.message}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                    OutlinedButton(
+                        onClick = { viewModel.resetUpdateDownload() },
+                        shape = TempoExtraShapes.pill,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Try again")
+                    }
+                }
+            }
+        }
     }
 }
 

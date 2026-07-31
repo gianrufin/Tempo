@@ -16,6 +16,7 @@ import com.tempo.app.data.backup.HabitImporter
 import com.tempo.app.data.preferences.PreferencesRepository
 import com.tempo.app.data.preferences.UserPreferences
 import com.tempo.app.data.repository.HabitRepository
+import com.tempo.app.data.update.AppUpdater
 import com.tempo.app.data.update.UpdateCheckResult
 import com.tempo.app.data.update.UpdateChecker
 import com.tempo.app.domain.model.ThemeMode
@@ -64,6 +65,7 @@ class SettingsViewModel @Inject constructor(
     private val preferencesRepository: PreferencesRepository,
     private val habitRepository: HabitRepository,
     private val updateChecker: UpdateChecker,
+    private val appUpdater: AppUpdater,
     private val backupManager: BackupManager,
     private val backupScheduler: BackupScheduler,
     private val habitImporter: HabitImporter,
@@ -155,6 +157,17 @@ class SettingsViewModel @Inject constructor(
             val result = updateChecker.checkForUpdate()
             _updateCheckState.value = UpdateCheckUiState(isChecking = false, result = result)
         }
+    }
+
+    val updateDownloadState = appUpdater.downloadState
+
+    fun canInstallPackages(): Boolean = appUpdater.canInstallPackages()
+    fun requestInstallPackagesPermission() = appUpdater.requestInstallPackagesPermission()
+    fun promptInstallUpdate() = appUpdater.promptInstall()
+    fun resetUpdateDownload() = appUpdater.reset()
+
+    fun downloadUpdate() {
+        viewModelScope.launch { appUpdater.downloadUpdate() }
     }
 
     suspend fun exportCsv(): String = habitRepository.exportAllCompletionsCsv()
