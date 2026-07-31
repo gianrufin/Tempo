@@ -26,6 +26,7 @@ class TimerAlarmReceiver : BroadcastReceiver() {
     @Inject lateinit var preferencesRepository: PreferencesRepository
 
     override fun onReceive(context: Context, intent: Intent) {
+        AlarmDiagnostics.recordReceiverFired(context, intent.action)
         val mode = intent.getStringExtra(EXTRA_MODE) ?: return
         val label = intent.getStringExtra(EXTRA_LABEL) ?: "Time's up!"
         val linkedHabitId = intent.getLongExtra(EXTRA_LINKED_HABIT_ID, -1L).takeIf { it != -1L }

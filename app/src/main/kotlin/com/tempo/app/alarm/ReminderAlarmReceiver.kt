@@ -25,6 +25,7 @@ class ReminderAlarmReceiver : BroadcastReceiver() {
     @Inject lateinit var alarmRescheduler: AlarmRescheduler
 
     override fun onReceive(context: Context, intent: Intent) {
+        AlarmDiagnostics.recordReceiverFired(context, intent.action)
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {

@@ -28,8 +28,11 @@ class ExactAlarmScheduler @Inject constructor(
      * triggered it — starting a timer or saving a habit/task should never fail because a
      * best-effort background alarm couldn't be set.
      */
-    fun scheduleAlarmClock(requestCode: Int, triggerAtMillis: Long, operationIntent: Intent) {
-        runCatching {
+    /** Returns whether the alarm was actually accepted by [AlarmManager], so callers that need to
+     * know (e.g. a "test alarm" button) can surface a real failure instead of it looking identical
+     * to a silently-dropped background alarm. */
+    fun scheduleAlarmClock(requestCode: Int, triggerAtMillis: Long, operationIntent: Intent): Result<Unit> {
+        return runCatching {
             val operation = PendingIntent.getBroadcast(
                 context,
                 requestCode,

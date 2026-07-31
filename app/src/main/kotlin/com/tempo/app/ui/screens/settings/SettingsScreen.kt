@@ -384,6 +384,20 @@ private fun NotificationTestSection(viewModel: SettingsViewModel) {
                 style = MaterialTheme.typography.bodySmall,
             )
         }
+        testState.testAlarmScheduleError?.let {
+            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+        }
+
+        OutlinedButton(
+            onClick = { viewModel.refreshLastAlarmReceivedSummary() },
+            shape = TempoExtraShapes.pill,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Check if the test alarm arrived")
+        }
+        testState.lastAlarmReceivedSummary?.let {
+            Text(it, style = MaterialTheme.typography.bodySmall)
+        }
     }
 }
 

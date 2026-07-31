@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.tempo.app.alarm.AlarmDiagnostics
 import com.tempo.app.alarm.AlarmReliabilityChecker
 import com.tempo.app.alarm.AlarmRequestCodes
 import com.tempo.app.alarm.ExactAlarmScheduler
@@ -54,6 +55,8 @@ data class HabitImportUiState(
 data class NotificationTestUiState(
     val testNotificationMessage: String? = null,
     val testAlarmScheduled: Boolean = false,
+    val testAlarmScheduleError: String? = null,
+    val lastAlarmReceivedSummary: String? = null,
 )
 
 @HiltViewModel
@@ -106,12 +109,32 @@ class SettingsViewModel @Inject constructor(
         val intent = Intent(appContext, ReminderAlarmReceiver::class.java).apply {
             action = ReminderAlarmReceiver.ACTION_TEST_ALARM
         }
-        exactAlarmScheduler.scheduleAlarmClock(
+        val result = exactAlarmScheduler.scheduleAlarmClock(
             AlarmRequestCodes.TEST,
             System.currentTimeMillis() + 10_000L,
             intent,
         )
-        _notificationTestState.value = NotificationTestUiState(testAlarmScheduled = true)
+        _notificationTestState.value = if (result.isSuccess) {
+            NotificationTestUiState(testAlarmScheduled = true)
+        } else {
+            NotificationTestUiState(testAlarmScheduleError = "Scheduling failed: ${result.exceptionOrNull()?.message}")
+        }
+    }
+
+    /** Reads whether the alarm-fired diagnostic marker (written by the receivers themselves,
+     * independent of whether notification posting succeeds) has been updated recently — the only
+     * way to tell "the alarm never reached the app" apart from "it arrived but showing failed." */
+    fun refreshLastAlarmReceivedSummary() {
+        val (action, firedAtMillis) = AlarmDiagnostics.lastFired(appContext) ?: run {
+            _notificationTestState.value = _notificationTestState.value.copy(
+                lastAlarmReceivedSummary = "No alarm has ever reached this app yet.",
+            )
+            return
+        }
+        val secondsAgo = (System.currentTimeMillis() - firedAtMillis) / 1000
+        _notificationTestState.value = _notificationTestState.value.copy(
+            lastAlarmReceivedSummary = "Last alarm reached the app: $action, ${secondsAgo}s ago.",
+        )
     }
 
     fun onDisplayNameChange(name: String) {
