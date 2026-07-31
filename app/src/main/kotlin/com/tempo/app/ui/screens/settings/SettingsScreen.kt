@@ -149,6 +149,10 @@ fun SettingsScreen(modifier: Modifier = Modifier, viewModel: SettingsViewModel =
             }
         }
 
+        SettingsSection(title = "Alarm reliability") {
+            AlarmReliabilitySection(viewModel = viewModel)
+        }
+
         SettingsSection(title = "Notifications") {
             NotificationTestSection(viewModel = viewModel)
         }
@@ -232,6 +236,73 @@ private fun SettingsSection(title: String, content: @Composable () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(text = title, style = MaterialTheme.typography.titleMedium)
         content()
+    }
+}
+
+@Composable
+private fun AlarmReliabilitySection(viewModel: SettingsViewModel) {
+    var refreshTick by remember { mutableStateOf(0) }
+    val canScheduleExactAlarms = remember(refreshTick) { viewModel.canScheduleExactAlarms() }
+    val ignoringBatteryOptimizations = remember(refreshTick) { viewModel.isIgnoringBatteryOptimizations() }
+
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(
+            "If reminders or timer alarms don't fire when the app isn't open, the two settings " +
+                "below are the most common fix — some phone makers kill background alarms unless " +
+                "both are granted, even though Tempo schedules them the same way a system alarm clock does.",
+            style = MaterialTheme.typography.bodySmall,
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("Alarms & reminders access", style = MaterialTheme.typography.bodyLarge)
+            Icon(
+                if (canScheduleExactAlarms) Icons.Filled.CheckCircle else Icons.Filled.Warning,
+                contentDescription = null,
+                tint = if (canScheduleExactAlarms) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+            )
+        }
+        if (!canScheduleExactAlarms) {
+            OutlinedButton(
+                onClick = { viewModel.openExactAlarmSettings(); refreshTick++ },
+                shape = TempoExtraShapes.pill,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Grant alarms & reminders access")
+            }
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("Unrestricted battery usage", style = MaterialTheme.typography.bodyLarge)
+            Icon(
+                if (ignoringBatteryOptimizations) Icons.Filled.CheckCircle else Icons.Filled.Warning,
+                contentDescription = null,
+                tint = if (ignoringBatteryOptimizations) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+            )
+        }
+        if (!ignoringBatteryOptimizations) {
+            OutlinedButton(
+                onClick = { viewModel.requestIgnoreBatteryOptimizations(); refreshTick++ },
+                shape = TempoExtraShapes.pill,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Allow unrestricted battery usage")
+            }
+            Text(
+                "On some phones (Xiaomi, Oppo, Vivo, some Samsung models) you may also need to " +
+                    "enable \"Autostart\" or set battery usage to \"No restrictions\" for Tempo in " +
+                    "the phone's own battery/app management settings — this screen only covers the " +
+                    "standard Android setting.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
     }
 }
 

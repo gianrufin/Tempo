@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.tempo.app.alarm.AlarmReliabilityChecker
 import com.tempo.app.alarm.AlarmRequestCodes
 import com.tempo.app.alarm.ExactAlarmScheduler
 import com.tempo.app.alarm.ReminderAlarmReceiver
@@ -66,6 +67,7 @@ class SettingsViewModel @Inject constructor(
     private val notificationHelper: NotificationHelper,
     private val exactAlarmScheduler: ExactAlarmScheduler,
     private val focusDndController: FocusDndController,
+    private val alarmReliabilityChecker: AlarmReliabilityChecker,
     @ApplicationContext private val appContext: Context,
 ) : ViewModel() {
 
@@ -199,6 +201,11 @@ class SettingsViewModel @Inject constructor(
     fun onAlarmSoundSelected(uri: Uri?, label: String) {
         viewModelScope.launch { preferencesRepository.setAlarmSound(uri?.toString(), label) }
     }
+
+    fun canScheduleExactAlarms(): Boolean = alarmReliabilityChecker.canScheduleExactAlarms()
+    fun isIgnoringBatteryOptimizations(): Boolean = alarmReliabilityChecker.isIgnoringBatteryOptimizations()
+    fun openExactAlarmSettings() = alarmReliabilityChecker.openExactAlarmSettings()
+    fun requestIgnoreBatteryOptimizations() = alarmReliabilityChecker.requestIgnoreBatteryOptimizations()
 
     fun hasDndAccess(): Boolean = focusDndController.hasAccess()
 
