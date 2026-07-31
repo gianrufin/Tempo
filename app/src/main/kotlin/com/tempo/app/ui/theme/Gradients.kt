@@ -5,24 +5,25 @@ import androidx.compose.ui.graphics.Color
 
 /**
  * AMOLED-friendly gradient identities: mostly true black with a faint tonal shift, rather than a
- * fully saturated hero gradient. Keeps a distinct "vibe" per section without fighting an AMOLED
- * panel's power/contrast benefits or reading as a bright/loud background.
+ * fully saturated hero gradient. Each one leans on the same gold-to-purple duotone as the landing
+ * page and marketing (gold top-left, purple bottom-right) instead of unrelated near-black hues,
+ * just mixed subtly enough to stay AMOLED-friendly and keep text/content readable on top.
  */
 object TempoGradients {
     val home = Brush.linearGradient(
-        colors = listOf(Color(0xFF060005), Color(0xFF120A14), Color(0xFF0A0610)),
+        colors = listOf(Color(0xFF160D02), Color(0xFF0A0612), Color(0xFF10081E)),
     )
 
     val reflect = Brush.linearGradient(
-        colors = listOf(Color(0xFF070000), Color(0xFF150A06), Color(0xFF0A0508)),
+        colors = listOf(Color(0xFF1A0F02), Color(0xFF0C0710), Color(0xFF0A0518)),
     )
 
     val detail = Brush.linearGradient(
-        colors = listOf(Color(0xFF000103), Color(0xFF0A1018), Color(0xFF000000)),
+        colors = listOf(Color(0xFF0C0714), Color(0xFF0A0612), Color(0xFF000000)),
     )
 
     val calm = Brush.linearGradient(
-        colors = listOf(Color(0xFF08050F), Color(0xFF120A1C), Color(0xFF050308)),
+        colors = listOf(Color(0xFF120A02), Color(0xFF0E081A), Color(0xFF07040F)),
     )
 }
 

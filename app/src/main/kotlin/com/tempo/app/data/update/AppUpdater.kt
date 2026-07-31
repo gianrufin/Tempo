@@ -117,6 +117,6 @@ class AppUpdater @Inject constructor(
 
     private companion object {
         const val APK_DOWNLOAD_URL =
-            "https://github.com/gianrufin/Tempo/releases/download/debug-latest/app-debug.apk"
+            "https://github.com/gianrufin/Tempo/releases/download/debug-latest/tempo.apk"
     }
 }

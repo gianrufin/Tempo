@@ -21,7 +21,6 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -31,6 +30,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -104,46 +104,59 @@ fun InsightsScreen(
             }
         }
 
-        OutlinedButton(
-            onClick = onOpenGoals,
-            shape = TempoExtraShapes.pill,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Icon(Icons.Filled.Flag, contentDescription = null)
-            Text("  Goals")
-        }
-
-        currentSummary?.let { summaryForShare ->
-            OutlinedButton(
-                onClick = { shareProgressText(context, summaryForShare.toShareText()) },
-                shape = TempoExtraShapes.pill,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Icon(Icons.Filled.Share, contentDescription = null)
-                Text("  Share progress")
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+            QuickAction(
+                icon = Icons.Filled.Flag,
+                label = "Goals",
+                onClick = onOpenGoals,
+                modifier = Modifier.weight(1f),
+            )
+            currentSummary?.let { summaryForShare ->
+                QuickAction(
+                    icon = Icons.Filled.Share,
+                    label = "Share",
+                    onClick = { shareProgressText(context, summaryForShare.toShareText()) },
+                    modifier = Modifier.weight(1f),
+                )
+                QuickAction(
+                    icon = Icons.Filled.Image,
+                    label = "Recap card",
+                    onClick = { shareWeeklyRecapCard(context, summaryForShare) },
+                    modifier = Modifier.weight(1f),
+                )
             }
-            OutlinedButton(
-                onClick = { shareWeeklyRecapCard(context, summaryForShare) },
-                shape = TempoExtraShapes.pill,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Icon(Icons.Filled.Image, contentDescription = null)
-                Text("  Share as recap card")
-            }
+            QuickAction(
+                icon = Icons.Filled.FileDownload,
+                label = "Export CSV",
+                onClick = {
+                    scope.launch {
+                        val csv = viewModel.exportCsv()
+                        shareCsv(context, csv)
+                    }
+                },
+                modifier = Modifier.weight(1f),
+            )
         }
+    }
+}
 
-        OutlinedButton(
-            onClick = {
-                scope.launch {
-                    val csv = viewModel.exportCsv()
-                    shareCsv(context, csv)
-                }
-            },
-            shape = TempoExtraShapes.pill,
-            modifier = Modifier.fillMaxWidth(),
+/** A compact icon-plus-label action, four of which fit in one row instead of stacking as
+ * full-width buttons that used to take up roughly half the screen's height. */
+@Composable
+private fun QuickAction(icon: ImageVector, label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Surface(
+        onClick = onClick,
+        shape = TempoExtraShapes.card,
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        modifier = modifier,
+    ) {
+        Column(
+            modifier = Modifier.padding(vertical = 12.dp, horizontal = 4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            Icon(Icons.Filled.FileDownload, contentDescription = null)
-            Text("  Export history as CSV")
+            Icon(icon, contentDescription = label, tint = MaterialTheme.colorScheme.primary)
+            Text(label, style = MaterialTheme.typography.labelSmall, maxLines = 1)
         }
     }
 }

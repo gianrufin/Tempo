@@ -24,7 +24,25 @@ android {
         buildConfigField("String", "GIT_SHA", "\"$gitSha\"")
     }
 
+    signingConfigs {
+        getByName("debug") {
+            // A fixed, committed keystore instead of Gradle's implicit ~/.android/debug.keystore.
+            // On a fresh CI runner there's no cached debug.keystore, so AGP silently generates a
+            // brand-new one (with a brand-new signing key) on every single run. Android refuses to
+            // install an update signed with a different certificate than the one already
+            // installed, so every CI build was forcing an uninstall-then-install instead of an
+            // in-place update. Using the same keystore for every build fixes that permanently.
+            storeFile = file("../keystore/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("debug")
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
@@ -54,6 +72,15 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
+    }
+}
+
+// Names the built APK "tempo.apk" instead of the default "app-debug.apk"/"app-release.apk".
+androidComponents {
+    onVariants { variant ->
+        variant.outputs.forEach { output ->
+            output.outputFileName.set("tempo.apk")
         }
     }
 }

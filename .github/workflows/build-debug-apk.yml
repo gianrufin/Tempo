@@ -41,7 +41,7 @@ jobs:
           name: Tempo debug build (latest)
           body: |
             Auto-built from the latest push to `claude/android-habit-planner-design-ril8qt`.
-            Download `app-debug.apk` below and install it on your phone
+            Download `tempo.apk` below and install it on your phone
             (you'll need to allow "install unknown apps" for your browser).
           prerelease: true
           make_latest: false
