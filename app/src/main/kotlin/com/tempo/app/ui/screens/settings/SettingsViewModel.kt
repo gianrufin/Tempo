@@ -97,14 +97,16 @@ class SettingsViewModel @Inject constructor(
     fun areNotificationsEnabled(): Boolean = notificationHelper.areNotificationsEnabled()
 
     fun sendTestNotificationNow() {
-        val posted = notificationHelper.showTestNotificationNow()
-        _notificationTestState.value = NotificationTestUiState(
-            testNotificationMessage = if (posted) {
-                "Sent — check your notification shade now."
-            } else {
-                "Blocked: notification permission isn't granted. Use the button above to fix that."
-            },
-        )
+        viewModelScope.launch {
+            val posted = notificationHelper.showTestNotificationNow()
+            _notificationTestState.value = NotificationTestUiState(
+                testNotificationMessage = if (posted) {
+                    "Sent — check your notification shade now."
+                } else {
+                    "Blocked: notification permission isn't granted. Use the button above to fix that."
+                },
+            )
+        }
     }
 
     fun scheduleTestAlarm() {
@@ -236,6 +238,10 @@ class SettingsViewModel @Inject constructor(
 
     fun onAlarmSoundSelected(uri: Uri?, label: String) {
         viewModelScope.launch { preferencesRepository.setAlarmSound(uri?.toString(), label) }
+    }
+
+    fun onNotificationSoundSelected(uri: Uri?, label: String) {
+        viewModelScope.launch { preferencesRepository.setNotificationSound(uri?.toString(), label) }
     }
 
     fun canScheduleExactAlarms(): Boolean = alarmReliabilityChecker.canScheduleExactAlarms()

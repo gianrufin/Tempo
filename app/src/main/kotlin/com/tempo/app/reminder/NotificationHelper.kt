@@ -6,30 +6,30 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.media.AudioAttributes
+import android.net.Uri
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.tempo.app.R
 import com.tempo.app.alarm.TaskReminderActionReceiver
+import com.tempo.app.data.preferences.PreferencesRepository
 import com.tempo.app.domain.model.Habit
 import com.tempo.app.domain.model.Task
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 
 class NotificationHelper @Inject constructor(
     @ApplicationContext private val context: Context,
+    private val preferencesRepository: PreferencesRepository,
 ) {
     init {
-        createChannels()
+        createTimerChannel()
     }
 
-    private fun createChannels() {
+    private fun createTimerChannel() {
         val manager = context.getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(
-            NotificationChannel(CHANNEL_ID, "Habit & task reminders", NotificationManager.IMPORTANCE_HIGH).apply {
-                description = "Reminders to complete your habits and tasks"
-            },
-        )
         // No channel sound here on purpose — TimerAlarmActivity/AlarmSoundPlayer plays the
         // user-chosen alarm sound directly so Stop/Snooze can control it precisely.
         manager.createNotificationChannel(
@@ -40,13 +40,45 @@ class NotificationHelper @Inject constructor(
         )
     }
 
-    fun showReminder(habit: Habit) {
+    /**
+     * A notification channel's sound is locked in at creation and can't be changed afterward —
+     * Android silently ignores any later attempt to alter an existing channel's settings. So
+     * letting the user pick a custom notification sound means keying the channel ID to that sound
+     * choice and creating a fresh channel whenever they pick a new one, rather than trying to
+     * mutate a single fixed "habit_reminders" channel.
+     */
+    private suspend fun reminderChannelId(): String {
+        val prefs = preferencesRepository.userPreferences.first()
+        val soundUri = prefs.notificationSoundUri
+        val channelId = if (soundUri == null) CHANNEL_ID else "${CHANNEL_ID}_${soundUri.hashCode()}"
+
+        val manager = context.getSystemService(NotificationManager::class.java)
+        if (manager.getNotificationChannel(channelId) == null) {
+            manager.createNotificationChannel(
+                NotificationChannel(channelId, "Habit & task reminders", NotificationManager.IMPORTANCE_HIGH).apply {
+                    description = "Reminders to complete your habits and tasks"
+                    if (soundUri != null) {
+                        setSound(
+                            Uri.parse(soundUri),
+                            AudioAttributes.Builder()
+                                .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                                .build(),
+                        )
+                    }
+                },
+            )
+        }
+        return channelId
+    }
+
+    suspend fun showReminder(habit: Habit) {
         val notificationId = habit.id.toInt()
 
         val markDoneIntent = actionIntent(ReminderActionReceiver.ACTION_MARK_DONE, habit.id, notificationId)
         val skipIntent = actionIntent(ReminderActionReceiver.ACTION_SKIP, habit.id, notificationId)
 
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+        val notification = NotificationCompat.Builder(context, reminderChannelId())
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle("${habit.icon} ${habit.name}")
             .setContentText("Time for your habit")
@@ -60,12 +92,12 @@ class NotificationHelper @Inject constructor(
         notifyIfPermitted(notificationId, notification)
     }
 
-    fun showTaskReminder(task: Task) {
+    suspend fun showTaskReminder(task: Task) {
         val notificationId = TASK_REMINDER_NOTIFICATION_ID_OFFSET + task.id.toInt()
 
         val markDoneIntent = taskActionIntent(TaskReminderActionReceiver.ACTION_MARK_TASK_DONE, task.id, notificationId)
 
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+        val notification = NotificationCompat.Builder(context, reminderChannelId())
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(task.title)
             .setContentText("Task reminder")
@@ -78,9 +110,9 @@ class NotificationHelper @Inject constructor(
         notifyIfPermitted(notificationId, notification)
     }
 
-    fun showStreakRisk(habit: Habit, currentStreak: Int) {
+    suspend fun showStreakRisk(habit: Habit, currentStreak: Int) {
         val notificationId = STREAK_RISK_NOTIFICATION_ID_OFFSET + habit.id.toInt()
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+        val notification = NotificationCompat.Builder(context, reminderChannelId())
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle("🔥 ${habit.icon} ${habit.name}'s streak is at risk")
             .setContentText("$currentStreak day streak — complete it before the day ends")
@@ -90,8 +122,8 @@ class NotificationHelper @Inject constructor(
         notifyIfPermitted(notificationId, notification)
     }
 
-    fun showWeeklyRecap(overallRatePercent: Int, periodLabel: String) {
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+    suspend fun showWeeklyRecap(overallRatePercent: Int, periodLabel: String) {
+        val notification = NotificationCompat.Builder(context, reminderChannelId())
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle("Your week in Tempo")
             .setContentText("$overallRatePercent% overall completion, $periodLabel")
@@ -141,8 +173,8 @@ class NotificationHelper @Inject constructor(
 
     /** Settings > Notifications > "Send test notification now" — an immediate, no-alarm-involved
      * check that permission + channel + display all work. Returns whether it was actually posted. */
-    fun showTestNotificationNow(): Boolean {
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+    suspend fun showTestNotificationNow(): Boolean {
+        val notification = NotificationCompat.Builder(context, reminderChannelId())
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle("Test notification")
             .setContentText("If you can see this, Tempo's notifications are working.")
@@ -154,8 +186,8 @@ class NotificationHelper @Inject constructor(
 
     /** What [com.tempo.app.alarm.ReminderAlarmReceiver.ACTION_TEST_ALARM] shows once the 10-second
      * test alarm actually fires — proves the full AlarmManager -> BroadcastReceiver pipeline. */
-    fun showTestAlarmFiredNotification() {
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+    suspend fun showTestAlarmFiredNotification() {
+        val notification = NotificationCompat.Builder(context, reminderChannelId())
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle("Test alarm fired ✅")
             .setContentText("The scheduled alarm reached Tempo and posted this notification.")

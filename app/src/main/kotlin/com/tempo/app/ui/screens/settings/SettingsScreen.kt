@@ -161,6 +161,10 @@ fun SettingsScreen(modifier: Modifier = Modifier, viewModel: SettingsViewModel =
             NotificationTestSection(viewModel = viewModel)
         }
 
+        SettingsSection(title = "Notification sound") {
+            NotificationSoundSection(viewModel = viewModel, prefs = prefs)
+        }
+
         SettingsSection(title = "Alarms") {
             AlarmSoundSection(viewModel = viewModel, prefs = prefs)
         }
@@ -537,20 +541,19 @@ private fun FocusDndSection(viewModel: SettingsViewModel, prefs: UserPreferences
 }
 
 @Composable
-private fun AlarmSoundSection(viewModel: SettingsViewModel, prefs: UserPreferences) {
-    var isTestPlaying by remember { mutableStateOf(false) }
+private fun NotificationSoundSection(viewModel: SettingsViewModel, prefs: UserPreferences) {
     val context = LocalContext.current
 
     val soundPicker = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         val uri = result.data?.getParcelableExtra<Uri>(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
         val label = uri?.let { runCatching { RingtoneManager.getRingtone(context, it)?.getTitle(context) }.getOrNull() }
-            ?: "Default alarm sound"
-        viewModel.onAlarmSoundSelected(uri, label)
+            ?: "Default notification sound"
+        viewModel.onNotificationSoundSelected(uri, label)
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(
-            "Used for habit/task reminders and for the Pomodoro/countdown timer alarm.",
+            "Plays once when a habit or task reminder notification arrives.",
             style = MaterialTheme.typography.bodySmall,
         )
 
@@ -564,8 +567,8 @@ private fun AlarmSoundSection(viewModel: SettingsViewModel, prefs: UserPreferenc
             BundledAlarmSounds.ALL.forEach { sound ->
                 val uriString = BundledAlarmSounds.uriStringFor(context.packageName, sound.rawResourceName)
                 FilterChip(
-                    selected = prefs.alarmSoundUri == uriString,
-                    onClick = { viewModel.onAlarmSoundSelected(Uri.parse(uriString), sound.label) },
+                    selected = prefs.notificationSoundUri == uriString,
+                    onClick = { viewModel.onNotificationSoundSelected(Uri.parse(uriString), sound.label) },
                     label = { Text(sound.label) },
                     shape = TempoExtraShapes.pill,
                 )
@@ -573,6 +576,54 @@ private fun AlarmSoundSection(viewModel: SettingsViewModel, prefs: UserPreferenc
         }
 
         Text("Or a system sound", style = MaterialTheme.typography.titleSmall)
+        OutlinedButton(
+            onClick = {
+                val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
+                    putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_NOTIFICATION)
+                    putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
+                    putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
+                    putExtra(
+                        RingtoneManager.EXTRA_RINGTONE_EXISTING_URI,
+                        prefs.notificationSoundUri?.let { Uri.parse(it) }
+                            ?: RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_NOTIFICATION),
+                    )
+                }
+                soundPicker.launch(intent)
+            },
+            shape = TempoExtraShapes.pill,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Icon(Icons.Filled.MusicNote, contentDescription = null)
+            Text("  ${prefs.notificationSoundLabel}")
+        }
+
+        Text(
+            "Changing this the first time after an update may take a moment to take effect — " +
+                "Android locks a notification's sound to the channel it was created with.",
+            style = MaterialTheme.typography.bodySmall,
+        )
+    }
+}
+
+@Composable
+private fun AlarmSoundSection(viewModel: SettingsViewModel, prefs: UserPreferences) {
+    var isTestPlaying by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+
+    val soundPicker = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val uri = result.data?.getParcelableExtra<Uri>(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
+        val label = uri?.let { runCatching { RingtoneManager.getRingtone(context, it)?.getTitle(context) }.getOrNull() }
+            ?: "Default alarm sound"
+        viewModel.onAlarmSoundSelected(uri, label)
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(
+            "The loud, looping sound for the Pomodoro/countdown timer alarm — pick something " +
+                "insistent enough to notice from across a room.",
+            style = MaterialTheme.typography.bodySmall,
+        )
+
         OutlinedButton(
             onClick = {
                 val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
