@@ -27,6 +27,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -76,6 +77,7 @@ fun TodayScreen(
     onOpenHabit: (Long) -> Unit = {},
     onOpenRoutine: (Long) -> Unit = {},
     onOpenSettings: () -> Unit = {},
+    onOpenSearch: () -> Unit = {},
     viewModel: TodayViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -94,7 +96,12 @@ fun TodayScreen(
                 .statusBarsPadding()
                 .navigationBarsPadding(),
         ) {
-            GreetingHeader(name = state.greetingName, selectedDate = state.selectedDate, onOpenSettings = onOpenSettings)
+            GreetingHeader(
+                name = state.greetingName,
+                selectedDate = state.selectedDate,
+                onOpenSettings = onOpenSettings,
+                onOpenSearch = onOpenSearch,
+            )
             DayStrip(
                 entries = state.dayStrip,
                 selectedDate = state.selectedDate,
@@ -223,7 +230,12 @@ private fun QuickAddDialog(onDismiss: () -> Unit, onSelect: (HabitTemplate) -> U
 }
 
 @Composable
-private fun GreetingHeader(name: String, selectedDate: LocalDate, onOpenSettings: () -> Unit) {
+private fun GreetingHeader(
+    name: String,
+    selectedDate: LocalDate,
+    onOpenSettings: () -> Unit,
+    onOpenSearch: () -> Unit,
+) {
     val dateLabel = remember(selectedDate) {
         selectedDate.format(DateTimeFormatter.ofPattern("MMMM d", Locale.getDefault()))
     }
@@ -246,6 +258,11 @@ private fun GreetingHeader(name: String, selectedDate: LocalDate, onOpenSettings
             )
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Surface(shape = CircleShape, color = OnGradient.surface, modifier = Modifier.size(48.dp), onClick = onOpenSearch) {
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                    Icon(Icons.Filled.Search, contentDescription = "Search", tint = OnGradient.textPrimary)
+                }
+            }
             Surface(shape = CircleShape, color = OnGradient.surface, modifier = Modifier.size(48.dp), onClick = onOpenSettings) {
                 Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                     Icon(Icons.Filled.Settings, contentDescription = "Settings", tint = OnGradient.textPrimary)

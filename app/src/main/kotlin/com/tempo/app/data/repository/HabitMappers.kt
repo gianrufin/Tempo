@@ -17,6 +17,7 @@ fun HabitEntity.toDomain(): Habit = Habit(
     routineId = routineId,
     createdAt = createdAt,
     archived = archived,
+    pausedUntil = pausedUntil,
 )
 
 fun Habit.toEntity(): HabitEntity = HabitEntity(
@@ -33,4 +34,5 @@ fun Habit.toEntity(): HabitEntity = HabitEntity(
     routineId = routineId,
     createdAt = createdAt,
     archived = archived,
+    pausedUntil = pausedUntil,
 )

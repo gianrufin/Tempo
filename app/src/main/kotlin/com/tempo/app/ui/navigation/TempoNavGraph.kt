@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -24,6 +25,7 @@ import com.tempo.app.ui.screens.habit.AddEditHabitScreen
 import com.tempo.app.ui.screens.habit.HabitDetailScreen
 import com.tempo.app.ui.screens.insights.InsightsScreen
 import com.tempo.app.ui.screens.routine.AddEditRoutineScreen
+import com.tempo.app.ui.screens.search.SearchScreen
 import com.tempo.app.ui.screens.settings.SettingsScreen
 import com.tempo.app.ui.screens.tasks.AddEditTaskScreen
 import com.tempo.app.ui.screens.tasks.TaskListScreen
@@ -38,6 +40,7 @@ private const val ROUTE_HABIT_DETAIL = "habit/detail/{$HABIT_ID_ARG}"
 private const val ROUTE_ADD_EDIT_ROUTINE = "routine/edit/{$ROUTINE_ID_ARG}"
 private const val ROUTE_ADD_EDIT_TASK = "task/edit/{$TASK_ID_ARG}"
 private const val ROUTE_SETTINGS = "settings"
+private const val ROUTE_SEARCH = "search"
 private const val ROUTE_GOALS = "goals"
 private const val ROUTE_ADD_GOAL = "goal/new"
 
@@ -56,10 +59,24 @@ private fun addTaskRoute() = "task/edit/0"
  * wherever the pill's rounded shape didn't cover the full slot width.
  */
 @Composable
-fun TempoApp(navController: NavHostController = rememberNavController()) {
+fun TempoApp(
+    navController: NavHostController = rememberNavController(),
+    pendingShortcutAction: String? = null,
+    onShortcutActionConsumed: () -> Unit = {},
+) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     val showBottomBar = TempoDestination.entries.any { it.route == currentRoute }
+
+    LaunchedEffect(pendingShortcutAction) {
+        when (pendingShortcutAction) {
+            "add_habit" -> navController.navigate(addHabitRoute())
+            "add_task" -> navController.navigate(addTaskRoute())
+            "start_pomodoro" -> navController.navigate(TempoDestination.Timer.route)
+            else -> return@LaunchedEffect
+        }
+        onShortcutActionConsumed()
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         NavHost(
@@ -74,6 +91,7 @@ fun TempoApp(navController: NavHostController = rememberNavController()) {
                     onOpenHabit = { habitId -> navController.navigate(habitDetailRoute(habitId)) },
                     onOpenRoutine = { routineId -> navController.navigate(editRoutineRoute(routineId)) },
                     onOpenSettings = { navController.navigate(ROUTE_SETTINGS) },
+                    onOpenSearch = { navController.navigate(ROUTE_SEARCH) },
                 )
             }
             composable(TempoDestination.Calendar.route) { CalendarScreen() }
@@ -88,6 +106,13 @@ fun TempoApp(navController: NavHostController = rememberNavController()) {
             }
             composable(TempoDestination.Timer.route) { TimerScreen() }
             composable(ROUTE_SETTINGS) { SettingsScreen() }
+            composable(ROUTE_SEARCH) {
+                SearchScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenHabit = { habitId -> navController.navigate(habitDetailRoute(habitId)) },
+                    onOpenTask = { taskId -> navController.navigate(editTaskRoute(taskId)) },
+                )
+            }
             composable(ROUTE_GOALS) {
                 GoalsScreen(
                     onBack = { navController.popBackStack() },

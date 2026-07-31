@@ -17,6 +17,8 @@ data class Habit(
     val routineId: Long? = null,
     val createdAt: LocalDate = LocalDate.now(),
     val archived: Boolean = false,
+    /** When set to a future date, the habit is on vacation/pause and won't be scheduled until then. */
+    val pausedUntil: LocalDate? = null,
 )
 
 /** A habit as it should appear on a given day, with its resolved status for that day. */

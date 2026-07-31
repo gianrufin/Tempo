@@ -9,6 +9,7 @@ import com.tempo.app.data.local.dao.HabitCompletionDao
 import com.tempo.app.data.local.dao.HabitDao
 import com.tempo.app.data.local.dao.MoodEntryDao
 import com.tempo.app.data.local.dao.RoutineDao
+import com.tempo.app.data.local.dao.TaskChecklistItemDao
 import com.tempo.app.data.local.dao.TaskCompletionDao
 import com.tempo.app.data.local.dao.TaskDao
 import dagger.Module
@@ -53,4 +54,7 @@ object DatabaseModule {
 
     @Provides
     fun provideGoalDao(database: TempoDatabase): GoalDao = database.goalDao()
+
+    @Provides
+    fun provideTaskChecklistItemDao(database: TempoDatabase): TaskChecklistItemDao = database.taskChecklistItemDao()
 }

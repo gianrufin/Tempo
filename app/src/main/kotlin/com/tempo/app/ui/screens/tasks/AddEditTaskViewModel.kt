@@ -7,6 +7,7 @@ import com.tempo.app.alarm.AlarmRescheduler
 import com.tempo.app.data.repository.TaskRepository
 import com.tempo.app.domain.model.RecurrenceRule
 import com.tempo.app.domain.model.Task
+import com.tempo.app.domain.model.TaskChecklistItem
 import com.tempo.app.domain.model.TaskPriority
 import com.tempo.app.ui.screens.habit.RecurrenceType
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -31,6 +32,7 @@ data class AddEditTaskUiState(
     val dueDate: LocalDate = LocalDate.now(),
     val reminderTime: LocalTime? = null,
     val priority: TaskPriority = TaskPriority.MEDIUM,
+    val checklist: List<TaskChecklistItem> = emptyList(),
     val isSaved: Boolean = false,
 ) {
     val isValid: Boolean get() = title.isNotBlank()
@@ -52,6 +54,8 @@ class AddEditTaskViewModel @Inject constructor(
         taskIdArg?.let { id ->
             viewModelScope.launch {
                 repository.getTask(id)?.let { task -> _uiState.value = task.toUiState() }
+                val checklist = repository.getChecklist(id)
+                _uiState.value = _uiState.value.copy(checklist = checklist)
             }
         }
     }
@@ -70,6 +74,19 @@ class AddEditTaskViewModel @Inject constructor(
     fun onDueDateChange(value: LocalDate) = update { it.copy(dueDate = value) }
     fun onReminderTimeChange(value: LocalTime?) = update { it.copy(reminderTime = value) }
     fun onPriorityChange(value: TaskPriority) = update { it.copy(priority = value) }
+
+    fun onAddChecklistItem(label: String) {
+        if (label.isBlank()) return
+        update { it.copy(checklist = it.checklist + TaskChecklistItem(taskId = it.taskId ?: 0L, label = label.trim())) }
+    }
+
+    fun onToggleChecklistItem(index: Int) = update {
+        it.copy(checklist = it.checklist.mapIndexed { i, item -> if (i == index) item.copy(done = !item.done) else item })
+    }
+
+    fun onRemoveChecklistItem(index: Int) = update {
+        it.copy(checklist = it.checklist.filterIndexed { i, _ -> i != index })
+    }
 
     fun save() {
         val state = _uiState.value
@@ -102,6 +119,7 @@ class AddEditTaskViewModel @Inject constructor(
                     priority = task.priority,
                 ))
             }
+            repository.replaceChecklist(savedId, state.checklist)
             alarmRescheduler.rescheduleTask(savedId)
             _uiState.value = _uiState.value.copy(isSaved = true)
         }

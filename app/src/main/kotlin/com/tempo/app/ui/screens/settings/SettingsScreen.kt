@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Send
@@ -130,18 +131,21 @@ fun SettingsScreen(modifier: Modifier = Modifier, viewModel: SettingsViewModel =
         }
 
         SettingsSection(title = "Data") {
-            OutlinedButton(
-                onClick = {
-                    scope.launch {
-                        val csv = viewModel.exportCsv()
-                        shareCsv(context, csv)
-                    }
-                },
-                shape = TempoExtraShapes.pill,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Icon(Icons.Filled.FileDownload, contentDescription = null)
-                Text("  Export history as CSV")
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedButton(
+                    onClick = {
+                        scope.launch {
+                            val csv = viewModel.exportCsv()
+                            shareCsv(context, csv)
+                        }
+                    },
+                    shape = TempoExtraShapes.pill,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Icon(Icons.Filled.FileDownload, contentDescription = null)
+                    Text("  Export history as CSV")
+                }
+                HabitImportSection(viewModel = viewModel)
             }
         }
 
@@ -151,6 +155,10 @@ fun SettingsScreen(modifier: Modifier = Modifier, viewModel: SettingsViewModel =
 
         SettingsSection(title = "Alarms") {
             AlarmSoundSection(viewModel = viewModel, prefs = prefs)
+        }
+
+        SettingsSection(title = "Focus mode") {
+            FocusDndSection(viewModel = viewModel, prefs = prefs)
         }
 
         SettingsSection(title = "Backup") {
@@ -303,6 +311,67 @@ private fun NotificationTestSection(viewModel: SettingsViewModel) {
             Text(
                 "Scheduled — lock or leave the app now; a notification should appear in ~10s.",
                 style = MaterialTheme.typography.bodySmall,
+            )
+        }
+    }
+}
+
+@Composable
+private fun HabitImportSection(viewModel: SettingsViewModel) {
+    val importState by viewModel.habitImportState.collectAsState()
+    val importPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) viewModel.importHabits(uri)
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedButton(
+            onClick = { importPicker.launch(arrayOf("*/*")) },
+            enabled = !importState.isRunning,
+            shape = TempoExtraShapes.pill,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            if (importState.isRunning) {
+                CircularProgressIndicator(modifier = Modifier.padding(end = 8.dp))
+            } else {
+                Icon(Icons.Filled.FileUpload, contentDescription = null)
+            }
+            Text("  Import habits from CSV/JSON")
+        }
+        importState.resultMessage?.let {
+            Text(it, style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}
+
+@Composable
+private fun FocusDndSection(viewModel: SettingsViewModel, prefs: UserPreferences) {
+    var permissionRefreshTick by remember { mutableStateOf(0) }
+    val hasAccess = remember(permissionRefreshTick) { viewModel.hasDndAccess() }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("Silence notifications during Pomodoro focus", style = MaterialTheme.typography.bodyLarge)
+            Switch(
+                checked = prefs.autoDndDuringFocus && hasAccess,
+                onCheckedChange = { enabled ->
+                    if (enabled && !hasAccess) {
+                        viewModel.openDndAccessSettings()
+                    } else {
+                        viewModel.onAutoDndDuringFocusChange(enabled)
+                    }
+                    permissionRefreshTick++
+                },
+            )
+        }
+        if (!hasAccess) {
+            Text(
+                "Needs \"Do Not Disturb access\" — toggling this will open system settings to grant it.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }

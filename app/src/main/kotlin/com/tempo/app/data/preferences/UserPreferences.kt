@@ -13,4 +13,5 @@ data class UserPreferences(
     val lastBackupAtMillis: Long? = null,
     val alarmSoundUri: String? = null,
     val alarmSoundLabel: String = "Default alarm sound",
+    val autoDndDuringFocus: Boolean = false,
 )

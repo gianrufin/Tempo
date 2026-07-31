@@ -1,13 +1,16 @@
 package com.tempo.app.data.repository
 
+import com.tempo.app.data.local.dao.TaskChecklistItemDao
 import com.tempo.app.data.local.dao.TaskCompletionDao
 import com.tempo.app.data.local.dao.TaskDao
 import com.tempo.app.data.local.entity.TaskCompletionEntity
 import com.tempo.app.domain.RecurrenceEngine
 import com.tempo.app.domain.model.Task
+import com.tempo.app.domain.model.TaskChecklistItem
 import com.tempo.app.domain.model.TaskWithTodayStatus
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import java.time.Instant
 import java.time.LocalDate
 import javax.inject.Inject
@@ -15,6 +18,7 @@ import javax.inject.Inject
 class TaskRepositoryImpl @Inject constructor(
     private val taskDao: TaskDao,
     private val completionDao: TaskCompletionDao,
+    private val checklistDao: TaskChecklistItemDao,
 ) : TaskRepository {
 
     override fun observeTasksForDate(date: LocalDate): Flow<List<TaskWithTodayStatus>> =
@@ -37,6 +41,9 @@ class TaskRepositoryImpl @Inject constructor(
                 }
             }
         }
+
+    override fun observeAllActiveTasks(): Flow<List<Task>> =
+        taskDao.observeActive().map { entities -> entities.map { it.toDomain() } }
 
     override suspend fun getAllActiveTasks(): List<Task> = taskDao.getAllActive().map { it.toDomain() }
 
@@ -68,6 +75,19 @@ class TaskRepositoryImpl @Inject constructor(
             }
         } else {
             taskDao.update(entity.copy(completedAt = if (entity.completedAt == null) Instant.now() else null))
+        }
+    }
+
+    override fun observeChecklist(taskId: Long): Flow<List<TaskChecklistItem>> =
+        checklistDao.observeForTask(taskId).map { items -> items.map { it.toDomain() } }
+
+    override suspend fun getChecklist(taskId: Long): List<TaskChecklistItem> =
+        checklistDao.getForTask(taskId).map { it.toDomain() }
+
+    override suspend fun replaceChecklist(taskId: Long, items: List<TaskChecklistItem>) {
+        checklistDao.getForTask(taskId).forEach { checklistDao.delete(it) }
+        items.forEachIndexed { index, item ->
+            checklistDao.insert(item.copy(taskId = taskId, sortOrder = index).toEntity())
         }
     }
 }

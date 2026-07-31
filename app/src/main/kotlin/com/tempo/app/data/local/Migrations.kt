@@ -84,5 +84,27 @@ object Migrations {
         }
     }
 
-    val ALL = arrayOf(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+    val MIGRATION_5_6 = object : Migration(5, 6) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `habits` ADD COLUMN `pausedUntil` INTEGER DEFAULT NULL")
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `task_checklist_items` (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `taskId` INTEGER NOT NULL,
+                    `label` TEXT NOT NULL,
+                    `done` INTEGER NOT NULL,
+                    `sortOrder` INTEGER NOT NULL,
+                    FOREIGN KEY(`taskId`) REFERENCES `tasks`(`id`) ON DELETE CASCADE
+                )
+                """.trimIndent(),
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_task_checklist_items_taskId` " +
+                    "ON `task_checklist_items` (`taskId`)",
+            )
+        }
+    }
+
+    val ALL = arrayOf(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
 }

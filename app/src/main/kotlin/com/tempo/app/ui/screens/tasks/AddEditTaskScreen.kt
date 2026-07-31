@@ -1,5 +1,7 @@
 package com.tempo.app.ui.screens.tasks
 
+import android.content.Intent
+import android.provider.CalendarContract
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,9 +14,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -41,9 +46,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.tempo.app.domain.model.TaskChecklistItem
 import com.tempo.app.domain.model.TaskPriority
 import com.tempo.app.ui.screens.habit.RecurrenceType
 import com.tempo.app.ui.theme.TempoExtraShapes
@@ -162,7 +169,17 @@ fun AddEditTaskScreen(
                 }
             } else {
                 TaskSection(title = "Due date") {
-                    DuePicker(dueDate = state.dueDate, onDueDateChange = viewModel::onDueDateChange)
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        DuePicker(dueDate = state.dueDate, onDueDateChange = viewModel::onDueDateChange)
+                        val context = LocalContext.current
+                        OutlinedButton(
+                            onClick = { addTaskToDeviceCalendar(context, state.title, state.notes, state.dueDate) },
+                            shape = TempoExtraShapes.pill,
+                        ) {
+                            Icon(Icons.Filled.CalendarMonth, contentDescription = null)
+                            Text("  Add to calendar")
+                        }
+                    }
                 }
             }
 
@@ -181,6 +198,15 @@ fun AddEditTaskScreen(
                         )
                     }
                 }
+            }
+
+            TaskSection(title = "Checklist") {
+                ChecklistEditor(
+                    items = state.checklist,
+                    onAdd = viewModel::onAddChecklistItem,
+                    onToggle = viewModel::onToggleChecklistItem,
+                    onRemove = viewModel::onRemoveChecklistItem,
+                )
             }
 
             TaskSection(title = "Notes") {
@@ -325,6 +351,67 @@ private fun ReminderPicker(time: LocalTime?, onTimeChange: (LocalTime?) -> Unit)
             }
         }
     }
+}
+
+@Composable
+private fun ChecklistEditor(
+    items: List<TaskChecklistItem>,
+    onAdd: (String) -> Unit,
+    onToggle: (Int) -> Unit,
+    onRemove: (Int) -> Unit,
+) {
+    var newLabel by remember { mutableStateOf("") }
+
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        items.forEachIndexed { index, item ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(checked = item.done, onCheckedChange = { onToggle(index) })
+                    Text(item.label, style = MaterialTheme.typography.bodyLarge)
+                }
+                IconButton(onClick = { onRemove(index) }) {
+                    Icon(Icons.Filled.Close, contentDescription = "Remove subtask")
+                }
+            }
+        }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedTextField(
+                value = newLabel,
+                onValueChange = { newLabel = it },
+                label = { Text("Add subtask") },
+                shape = TempoExtraShapes.card,
+                modifier = Modifier.weight(1f),
+            )
+            IconButton(onClick = {
+                onAdd(newLabel)
+                newLabel = ""
+            }) {
+                Icon(Icons.Filled.Add, contentDescription = "Add subtask")
+            }
+        }
+    }
+}
+
+private fun addTaskToDeviceCalendar(
+    context: android.content.Context,
+    title: String,
+    notes: String,
+    dueDate: java.time.LocalDate,
+) {
+    val startMillis = dueDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+    val intent = Intent(Intent.ACTION_INSERT).apply {
+        data = CalendarContract.Events.CONTENT_URI
+        putExtra(CalendarContract.EXTRA_EVENT_ALL_DAY, true)
+        putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, startMillis)
+        putExtra(CalendarContract.EXTRA_EVENT_END_TIME, startMillis)
+        putExtra(CalendarContract.Events.TITLE, title)
+        putExtra(CalendarContract.Events.DESCRIPTION, notes)
+    }
+    runCatching { context.startActivity(intent) }
 }
 
 private fun RecurrenceType.taskLabel(): String = when (this) {

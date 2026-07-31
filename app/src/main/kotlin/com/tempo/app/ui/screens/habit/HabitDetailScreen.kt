@@ -22,6 +22,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -35,6 +36,9 @@ import com.tempo.app.ui.components.GradientTopBar
 import com.tempo.app.ui.theme.TempoExtraShapes
 import com.tempo.app.ui.theme.TempoGradients
 import java.time.LocalDate
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 
 @Composable
 fun HabitDetailScreen(
@@ -44,6 +48,7 @@ fun HabitDetailScreen(
     viewModel: HabitDetailViewModel = hiltViewModel(),
 ) {
     val detail by viewModel.detail.collectAsState()
+    val bestTime by viewModel.bestTime.collectAsState()
 
     Scaffold(
         modifier = modifier,
@@ -67,13 +72,13 @@ fun HabitDetailScreen(
         if (current == null) {
             Box(modifier = Modifier.fillMaxSize().padding(innerPadding))
         } else {
-            HabitDetailContent(detail = current, modifier = Modifier.padding(innerPadding))
+            HabitDetailContent(detail = current, bestTime = bestTime, modifier = Modifier.padding(innerPadding))
         }
     }
 }
 
 @Composable
-private fun HabitDetailContent(detail: HabitDetail, modifier: Modifier = Modifier) {
+private fun HabitDetailContent(detail: HabitDetail, bestTime: LocalTime?, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -84,6 +89,19 @@ private fun HabitDetailContent(detail: HabitDetail, modifier: Modifier = Modifie
             StatCard(label = "Current streak", value = detail.currentStreak.toString(), modifier = Modifier.weight(1f))
             StatCard(label = "Best streak", value = detail.bestStreak.toString(), modifier = Modifier.weight(1f))
             StatCard(label = "Last 30 days", value = "${detail.completionRatePercent}%", modifier = Modifier.weight(1f))
+        }
+
+        if (bestTime != null) {
+            val formatter = remember { DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT) }
+            Surface(shape = TempoExtraShapes.card, color = MaterialTheme.colorScheme.surfaceVariant) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Best time to do it", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "You usually complete this around ${bestTime.format(formatter)}.",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+            }
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {

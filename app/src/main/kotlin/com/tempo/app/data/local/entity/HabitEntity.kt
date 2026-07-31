@@ -22,4 +22,5 @@ data class HabitEntity(
     val routineId: Long? = null,
     val createdAt: LocalDate,
     val archived: Boolean,
+    val pausedUntil: LocalDate? = null,
 )

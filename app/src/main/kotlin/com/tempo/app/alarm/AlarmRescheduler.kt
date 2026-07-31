@@ -68,6 +68,7 @@ class AlarmRescheduler @Inject constructor(
 
     private suspend fun scheduleHabit(habit: Habit) {
         if (habit.reminderTimes.isEmpty()) return
+        if (habit.pausedUntil != null && habit.pausedUntil.isAfter(LocalDate.now())) return
         val recentDone = habitRepository.getRecentDoneTimestamps(habit.id)
 
         habit.reminderTimes.forEachIndexed { slot, reminderTime ->
@@ -108,7 +109,8 @@ class AlarmRescheduler @Inject constructor(
         val now = LocalDateTime.now()
         var date = LocalDate.now()
         for (i in 0 until lookaheadDays) {
-            if (!date.isBefore(habit.createdAt) && RecurrenceEngine.isScheduledOn(habit.recurrenceRule, date)) {
+            val pausedOnDate = habit.pausedUntil != null && date.isBefore(habit.pausedUntil)
+            if (!pausedOnDate && !date.isBefore(habit.createdAt) && RecurrenceEngine.isScheduledOn(habit.recurrenceRule, date)) {
                 if (date.atTime(time).isAfter(now)) {
                     val status = habitRepository.getCompletionStatus(habit.id, date)
                     if (status != HabitCompletionStatus.DONE && status != HabitCompletionStatus.SKIPPED_EXCUSED) {

@@ -96,6 +96,7 @@ class HabitRepositoryImpl @Inject constructor(
     ): Boolean {
         val rule = habit.recurrenceRule
         if (date.isBefore(habit.createdAt)) return false
+        if (habit.pausedUntil != null && date.isBefore(habit.pausedUntil)) return false
         if (rule !is RecurrenceRule.TimesPerWeek) return RecurrenceEngine.isScheduledOn(rule, date)
 
         val weekStart = RecurrenceEngine.startOfWeek(date)

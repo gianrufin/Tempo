@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -40,6 +41,7 @@ import com.tempo.app.domain.model.InsightsSummary
 import com.tempo.app.domain.model.Mood
 import com.tempo.app.ui.components.shareCsv
 import com.tempo.app.ui.components.shareProgressText
+import com.tempo.app.ui.components.shareWeeklyRecapCard
 import com.tempo.app.ui.theme.TempoExtraShapes
 import kotlinx.coroutines.launch
 
@@ -119,6 +121,14 @@ fun InsightsScreen(
             ) {
                 Icon(Icons.Filled.Share, contentDescription = null)
                 Text("  Share progress")
+            }
+            OutlinedButton(
+                onClick = { shareWeeklyRecapCard(context, summaryForShare) },
+                shape = TempoExtraShapes.pill,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Icon(Icons.Filled.Image, contentDescription = null)
+                Text("  Share as recap card")
             }
         }
 

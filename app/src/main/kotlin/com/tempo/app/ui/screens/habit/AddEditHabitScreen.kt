@@ -217,6 +217,39 @@ fun AddEditHabitScreen(
                 )
             }
 
+            if (state.habitId != null) {
+                Section(title = "Vacation mode") {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        val pausedUntil = state.pausedUntil
+                        if (pausedUntil != null && pausedUntil.isAfter(java.time.LocalDate.now())) {
+                            Text(
+                                "Paused until $pausedUntil — no reminders or missed-streak penalties until then.",
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                            OutlinedButton(onClick = viewModel::onResumeFromPause, shape = TempoExtraShapes.pill) {
+                                Text("Resume now")
+                            }
+                        } else {
+                            Text(
+                                "Going away? Pause this habit so it won't count against your streak.",
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                OutlinedButton(onClick = { viewModel.onPauseFor(3) }, shape = TempoExtraShapes.pill) {
+                                    Text("3 days")
+                                }
+                                OutlinedButton(onClick = { viewModel.onPauseFor(7) }, shape = TempoExtraShapes.pill) {
+                                    Text("1 week")
+                                }
+                                OutlinedButton(onClick = { viewModel.onPauseFor(14) }, shape = TempoExtraShapes.pill) {
+                                    Text("2 weeks")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(8.dp))
 
             Button(

@@ -1,6 +1,7 @@
 package com.tempo.app
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -14,6 +15,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -33,6 +37,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         requestNotificationPermissionIfNeeded()
+        val initialShortcutAction = intent?.getStringExtra(EXTRA_SHORTCUT_ACTION)
         setContent {
             val appViewModel: AppRootViewModel = hiltViewModel()
             val prefs by appViewModel.preferences.collectAsState()
@@ -42,16 +47,29 @@ class MainActivity : ComponentActivity() {
                 ThemeMode.LIGHT -> false
                 ThemeMode.DARK -> true
             }
+            var shortcutAction by remember { mutableStateOf(initialShortcutAction) }
 
             TempoTheme(darkTheme = darkTheme, dynamicColor = prefs.dynamicColorEnabled) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background,
                 ) {
-                    TempoApp()
+                    TempoApp(
+                        pendingShortcutAction = shortcutAction,
+                        onShortcutActionConsumed = { shortcutAction = null },
+                    )
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+    }
+
+    companion object {
+        const val EXTRA_SHORTCUT_ACTION = "shortcut_action"
     }
 
     private fun requestNotificationPermissionIfNeeded() {

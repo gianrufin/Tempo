@@ -10,6 +10,7 @@ import com.tempo.app.alarm.ExactAlarmScheduler
 import com.tempo.app.alarm.ReminderAlarmReceiver
 import com.tempo.app.data.backup.BackupManager
 import com.tempo.app.data.backup.BackupScheduler
+import com.tempo.app.data.backup.HabitImporter
 import com.tempo.app.data.preferences.PreferencesRepository
 import com.tempo.app.data.preferences.UserPreferences
 import com.tempo.app.data.repository.HabitRepository
@@ -17,6 +18,7 @@ import com.tempo.app.data.update.UpdateCheckResult
 import com.tempo.app.data.update.UpdateChecker
 import com.tempo.app.domain.model.ThemeMode
 import com.tempo.app.reminder.NotificationHelper
+import com.tempo.app.timer.FocusDndController
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -43,6 +45,11 @@ data class RestoreUiState(
     val errorMessage: String? = null,
 )
 
+data class HabitImportUiState(
+    val isRunning: Boolean = false,
+    val resultMessage: String? = null,
+)
+
 data class NotificationTestUiState(
     val testNotificationMessage: String? = null,
     val testAlarmScheduled: Boolean = false,
@@ -55,8 +62,10 @@ class SettingsViewModel @Inject constructor(
     private val updateChecker: UpdateChecker,
     private val backupManager: BackupManager,
     private val backupScheduler: BackupScheduler,
+    private val habitImporter: HabitImporter,
     private val notificationHelper: NotificationHelper,
     private val exactAlarmScheduler: ExactAlarmScheduler,
+    private val focusDndController: FocusDndController,
     @ApplicationContext private val appContext: Context,
 ) : ViewModel() {
 
@@ -71,6 +80,9 @@ class SettingsViewModel @Inject constructor(
 
     private val _restoreState = MutableStateFlow(RestoreUiState())
     val restoreState = _restoreState.asStateFlow()
+
+    private val _habitImportState = MutableStateFlow(HabitImportUiState())
+    val habitImportState = _habitImportState.asStateFlow()
 
     private val _notificationTestState = MutableStateFlow(NotificationTestUiState())
     val notificationTestState = _notificationTestState.asStateFlow()
@@ -161,7 +173,44 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun importHabits(uri: Uri) {
+        viewModelScope.launch {
+            _habitImportState.value = HabitImportUiState(isRunning = true)
+            val text = runCatching {
+                appContext.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+            }.getOrNull()
+            if (text.isNullOrBlank()) {
+                _habitImportState.value = HabitImportUiState(resultMessage = "Couldn't read that file.")
+                return@launch
+            }
+            val result = if (text.trimStart().startsWith("[")) {
+                habitImporter.importJson(text)
+            } else {
+                habitImporter.importCsv(text)
+            }
+            _habitImportState.value = if (result.isSuccess) {
+                HabitImportUiState(resultMessage = "Imported ${result.getOrNull()} habit(s).")
+            } else {
+                HabitImportUiState(resultMessage = "Import failed: ${result.exceptionOrNull()?.message}")
+            }
+        }
+    }
+
     fun onAlarmSoundSelected(uri: Uri?, label: String) {
         viewModelScope.launch { preferencesRepository.setAlarmSound(uri?.toString(), label) }
+    }
+
+    fun hasDndAccess(): Boolean = focusDndController.hasAccess()
+
+    fun onAutoDndDuringFocusChange(enabled: Boolean) {
+        viewModelScope.launch { preferencesRepository.setAutoDndDuringFocus(enabled) }
+    }
+
+    fun openDndAccessSettings() {
+        appContext.startActivity(
+            Intent(android.provider.Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            },
+        )
     }
 }

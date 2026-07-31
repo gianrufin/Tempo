@@ -23,6 +23,7 @@ private object PreferenceKeys {
     val LAST_BACKUP_AT_MILLIS = longPreferencesKey("last_backup_at_millis")
     val ALARM_SOUND_URI = stringPreferencesKey("alarm_sound_uri")
     val ALARM_SOUND_LABEL = stringPreferencesKey("alarm_sound_label")
+    val AUTO_DND_DURING_FOCUS = booleanPreferencesKey("auto_dnd_during_focus")
 }
 
 class PreferencesRepository @Inject constructor(
@@ -41,6 +42,7 @@ class PreferencesRepository @Inject constructor(
             lastBackupAtMillis = prefs[PreferenceKeys.LAST_BACKUP_AT_MILLIS],
             alarmSoundUri = prefs[PreferenceKeys.ALARM_SOUND_URI],
             alarmSoundLabel = prefs[PreferenceKeys.ALARM_SOUND_LABEL] ?: "Default alarm sound",
+            autoDndDuringFocus = prefs[PreferenceKeys.AUTO_DND_DURING_FOCUS] ?: false,
         )
     }
 
@@ -82,5 +84,9 @@ class PreferencesRepository @Inject constructor(
             if (uri == null) it.remove(PreferenceKeys.ALARM_SOUND_URI) else it[PreferenceKeys.ALARM_SOUND_URI] = uri
             it[PreferenceKeys.ALARM_SOUND_LABEL] = label
         }
+    }
+
+    suspend fun setAutoDndDuringFocus(enabled: Boolean) {
+        dataStore.edit { it[PreferenceKeys.AUTO_DND_DURING_FOCUS] = enabled }
     }
 }

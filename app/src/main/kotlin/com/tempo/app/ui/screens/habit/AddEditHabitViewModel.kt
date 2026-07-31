@@ -37,6 +37,7 @@ data class AddEditHabitUiState(
     val timeOfDay: TimeOfDay = TimeOfDay.forCurrentTime(),
     val routineId: Long? = null,
     val reminderTimes: List<LocalTime> = emptyList(),
+    val pausedUntil: LocalDate? = null,
     val isSaved: Boolean = false,
 ) {
     val isValid: Boolean get() = name.isNotBlank()
@@ -89,6 +90,8 @@ class AddEditHabitViewModel @Inject constructor(
         if (time in it.reminderTimes) it else it.copy(reminderTimes = (it.reminderTimes + time).sorted())
     }
     fun onRemoveReminderTime(time: LocalTime) = update { it.copy(reminderTimes = it.reminderTimes - time) }
+    fun onPauseFor(days: Int) = update { it.copy(pausedUntil = LocalDate.now().plusDays(days.toLong())) }
+    fun onResumeFromPause() = update { it.copy(pausedUntil = null) }
 
     fun save() {
         val state = _uiState.value
@@ -109,6 +112,7 @@ class AddEditHabitViewModel @Inject constructor(
                         routineId = state.routineId,
                         reminderTimes = state.reminderTimes,
                         createdAt = LocalDate.now(),
+                        pausedUntil = state.pausedUntil,
                     ),
                 )
             } else {
@@ -124,6 +128,7 @@ class AddEditHabitViewModel @Inject constructor(
                         graceDays = state.graceDays,
                         timeOfDay = state.timeOfDay,
                         reminderTimes = state.reminderTimes,
+                        pausedUntil = state.pausedUntil,
                     ),
                 )
             }
@@ -158,6 +163,7 @@ class AddEditHabitViewModel @Inject constructor(
             timeOfDay = timeOfDay,
             routineId = routineId,
             reminderTimes = reminderTimes,
+            pausedUntil = pausedUntil,
         )
         return when (val rule = recurrenceRule) {
             is RecurrenceRule.Daily -> base.copy(recurrenceType = RecurrenceType.DAILY)

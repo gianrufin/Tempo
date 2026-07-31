@@ -8,8 +8,10 @@ import androidx.lifecycle.viewModelScope
 import com.tempo.app.alarm.AlarmRequestCodes
 import com.tempo.app.alarm.ExactAlarmScheduler
 import com.tempo.app.alarm.TimerAlarmReceiver
+import com.tempo.app.data.preferences.PreferencesRepository
 import com.tempo.app.data.repository.HabitRepository
 import com.tempo.app.domain.model.Habit
+import com.tempo.app.timer.FocusDndController
 import com.tempo.app.widget.WidgetRefresher
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -19,6 +21,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -61,6 +64,8 @@ data class TimerUiState(
 class TimerViewModel @Inject constructor(
     private val repository: HabitRepository,
     private val alarmScheduler: ExactAlarmScheduler,
+    private val preferencesRepository: PreferencesRepository,
+    private val focusDndController: FocusDndController,
     @ApplicationContext private val appContext: Context,
 ) : ViewModel() {
 
@@ -102,6 +107,7 @@ class TimerViewModel @Inject constructor(
                 tick()
             }
         }
+        syncFocusDnd()
     }
 
     fun pause() {
@@ -111,6 +117,7 @@ class TimerViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(isRunning = false)
         }
         cancelTimerAlarm()
+        syncFocusDnd()
     }
 
     fun reset() {
@@ -123,6 +130,16 @@ class TimerViewModel @Inject constructor(
             )
             TimerMode.STOPWATCH -> state.copy(stopwatchElapsedMillis = 0L)
             TimerMode.COUNTDOWN -> state.copy(countdownRemainingSeconds = state.countdownSetMinutes * 60)
+        }
+    }
+
+    /** Turns focus DND on only while a Pomodoro work segment (not its break) is actively running. */
+    private fun syncFocusDnd() {
+        viewModelScope.launch {
+            val autoDndEnabled = preferencesRepository.userPreferences.first().autoDndDuringFocus
+            val state = _uiState.value
+            val shouldEnable = autoDndEnabled && state.isRunning && state.mode == TimerMode.POMODORO && !state.pomodoroIsBreak
+            if (shouldEnable) focusDndController.enable() else focusDndController.disable()
         }
     }
 
@@ -145,6 +162,8 @@ class TimerViewModel @Inject constructor(
                         pomodoroRemainingSeconds = if (nowBreak) state.pomodoroBreakMinutes * 60 else state.pomodoroWorkMinutes * 60,
                     )
                     scheduleCurrentSegmentAlarm(next)
+                    _uiState.value = next
+                    syncFocusDnd()
                     next
                 } else {
                     state.copy(pomodoroRemainingSeconds = state.pomodoroRemainingSeconds - 1)
