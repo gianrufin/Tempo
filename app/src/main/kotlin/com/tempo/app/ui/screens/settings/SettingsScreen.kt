@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -62,6 +63,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.tempo.app.BuildConfig
 import com.tempo.app.alarm.AlarmSoundPlayer
+import com.tempo.app.alarm.BundledAlarmSounds
 import com.tempo.app.data.preferences.UserPreferences
 import com.tempo.app.data.update.UpdateChecker
 import com.tempo.app.data.update.UpdateDownloadState
@@ -551,6 +553,26 @@ private fun AlarmSoundSection(viewModel: SettingsViewModel, prefs: UserPreferenc
             "Used for habit/task reminders and for the Pomodoro/countdown timer alarm.",
             style = MaterialTheme.typography.bodySmall,
         )
+
+        Text("Tempo sounds", style = MaterialTheme.typography.titleSmall)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            BundledAlarmSounds.ALL.forEach { sound ->
+                val uriString = BundledAlarmSounds.uriStringFor(context.packageName, sound.rawResourceName)
+                FilterChip(
+                    selected = prefs.alarmSoundUri == uriString,
+                    onClick = { viewModel.onAlarmSoundSelected(Uri.parse(uriString), sound.label) },
+                    label = { Text(sound.label) },
+                    shape = TempoExtraShapes.pill,
+                )
+            }
+        }
+
+        Text("Or a system sound", style = MaterialTheme.typography.titleSmall)
         OutlinedButton(
             onClick = {
                 val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
