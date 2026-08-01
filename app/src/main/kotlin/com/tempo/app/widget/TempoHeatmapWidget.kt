@@ -1,11 +1,13 @@
 package com.tempo.app.widget
 
 import android.content.Context
+import android.content.Intent
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
+import androidx.glance.LocalContext
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.action.actionStartActivity
@@ -76,12 +78,13 @@ private fun TempoHeatmapContent(month: YearMonth, aggregates: List<DayAggregate>
     val days: List<LocalDate?> = List(leadingPadding) { null } + (1..month.lengthOfMonth()).map { month.atDay(it) }
     val weeks = days.chunked(7)
     val monthLabel = firstOfMonth.format(DateTimeFormatter.ofPattern("MMMM", Locale.getDefault()))
+    val context = LocalContext.current
 
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
             .background(WidgetBackground)
-            .clickable(actionStartActivity<MainActivity>())
+            .clickable(actionStartActivity(Intent(context, MainActivity::class.java)))
             .padding(12.dp),
     ) {
         Text(

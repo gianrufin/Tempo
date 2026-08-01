@@ -1,11 +1,13 @@
 package com.tempo.app.widget
 
 import android.content.Context
+import android.content.Intent
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
+import androidx.glance.LocalContext
 import androidx.glance.action.actionParametersOf
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
@@ -61,11 +63,12 @@ class TempoWidget : GlanceAppWidget() {
 
 @Composable
 private fun TempoWidgetContent(habits: List<HabitWithTodayStatus>) {
+    val context = LocalContext.current
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
             .background(WidgetBackground)
-            .clickable(actionStartActivity<MainActivity>())
+            .clickable(actionStartActivity(Intent(context, MainActivity::class.java)))
             .padding(12.dp),
     ) {
         Text(
