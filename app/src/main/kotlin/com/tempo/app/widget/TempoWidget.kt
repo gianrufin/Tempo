@@ -10,6 +10,7 @@ import androidx.glance.action.actionParametersOf
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.action.actionRunCallback
+import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
@@ -26,6 +27,7 @@ import androidx.glance.layout.width
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
+import com.tempo.app.MainActivity
 import com.tempo.app.di.WidgetEntryPoint
 import com.tempo.app.domain.model.HabitCompletionStatus
 import com.tempo.app.domain.model.HabitWithTodayStatus
@@ -63,6 +65,7 @@ private fun TempoWidgetContent(habits: List<HabitWithTodayStatus>) {
         modifier = GlanceModifier
             .fillMaxSize()
             .background(WidgetBackground)
+            .clickable(actionStartActivity<MainActivity>())
             .padding(12.dp),
     ) {
         Text(
